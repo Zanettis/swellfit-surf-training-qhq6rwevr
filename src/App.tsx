@@ -3,8 +3,6 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Coach from './pages/Coach'
-import Player from './pages/Player'
-import CheckIn from './pages/CheckIn'
 import Explore from './pages/Explore'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
@@ -24,9 +22,9 @@ const App = () => (
           <Route path="/explore" element={<Explore />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
-        {/* Full-screen player lives outside Layout so the tab bar is hidden */}
-        <Route path="/workout" element={<Player />} />
-        <Route path="/checkin" element={<CheckIn />} />
+        {/* Player and CheckIn are fixed overlays driven by Coach state (Coach.tsx),
+            not routes: they render full-screen above everything with their own
+            props. Unknown paths fall through to NotFound. */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </TooltipProvider>

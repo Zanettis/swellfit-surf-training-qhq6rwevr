@@ -6,6 +6,13 @@ export type TimeOption = 'full' | 'express'
 export type EquipmentOption = 'bodyweight' | 'bands' | 'kettlebell' | 'gym'
 export type JointOption = 'shoulders' | 'lowerBack'
 
+/** The adapt-session settings the Coach screen persists and builds a session from. */
+export interface CoachSettings {
+  time: TimeOption
+  equipment: EquipmentOption
+  joints: JointOption[]
+}
+
 export interface ExerciseBase {
   id: string
   name: string

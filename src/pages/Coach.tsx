@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { DayMode } from '@/data/sessions'
 import { toast } from '@/hooks/use-toast'
 import { buildSession, cloneSession } from '@/data/sessions'
-import type { PlayerSession } from '@/data/player-types'
+import type { CoachSession } from '@/data/player-types'
 import { CoachHeader } from '@/components/coach/CoachHeader'
 import { DaySwitch } from '@/components/coach/DaySwitch'
 import { HeroCard } from '@/components/coach/HeroCard'
@@ -26,8 +26,8 @@ export default function Coach() {
   const [settings, setSettings] = useState(() => loadSettings())
   const [adaptOpen, setAdaptOpen] = useState(false)
   const [screen, setScreen] = useState<Screen>('coach')
-  const [activeSession, setActiveSession] = useState<PlayerSession | null>(null)
-  const [startExercise, setStartExercise] = useState(0)
+  const [activeSession, setActiveSession] = useState<CoachSession | null>(null)
+  const [, setStartExercise] = useState(0)
   const [summary, setSummary] = useState<{ elapsedSeconds: number; exerciseCount: number } | null>(
     null,
   )

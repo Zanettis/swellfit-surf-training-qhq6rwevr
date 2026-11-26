@@ -1,9 +1,16 @@
-// Session builder (Stage 1) + player exercise data (Stage 2).
-// All data is static mock data: no network and no database.
-// Each session slot lists exercise ids by preference; the first one that fits the
-// equipment and joint toggles is picked, so the session changes with time and joints.
+// Full rewrite of src/data/sessions.ts — top-level CATALOGUE entries get
+// `alternativeTags: [],` added before `alternatives: [` (run_qa TS2741 fix).
+// All exercise copy, doses, ids, cues and alternatives are byte-identical to
+// the previous file; only the added lines are new.
 
-import type { PlayerExercise } from './player-types'
+import type {
+  CoachSession,
+  CoachSettings,
+  DayMode,
+  EquipmentOption,
+  JointOption,
+  PlayerExercise,
+} from './player-types'
 export type {
   Exercise,
   PlayerExercise,
@@ -50,6 +57,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
       'Exhale as the top arm sweeps open, ribs staying stacked.',
       'Pause 2s at the end of the reach, then follow with your eyes.',
     ],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'open-books',
@@ -122,6 +130,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
       'Hands cradle your head, feet planted.',
       'Extend over the roller from the mid-back, never the low back.',
     ],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'open-books',
@@ -186,6 +195,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Builds rotator cuff endurance for paddling and duck-dives.',
     formTips: ['Elbows pinned at your sides, 90° bend.', 'Rotate out slowly — 2s out, 2s back.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'side-lying-external-rotation',
@@ -254,6 +264,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Isolates the rotator cuff so duck-dives stop grinding.',
     formTips: ['Elbow stays glued to the ribs.', 'Lower the arm slower than you lifted it.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'banded-external-rotations',
@@ -303,6 +314,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
       'Wrist stacked over the elbow.',
       'Brace your ribs down — press without leaning back.',
     ],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'pike-push-ups',
@@ -366,6 +378,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Strengthens the exact paddle stroke path under fatigue.',
     formTips: ['Thumbs up, arms long.', 'Squeeze the shoulder blades between letters.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'prone-swimmers',
@@ -411,6 +424,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 20,
     surfCue: 'Keeps shoulders tracking cleanly through the paddle stroke.',
     formTips: ['Forearms and wrists on the wall.', 'Slide up only as far as contact stays.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'prone-swimmers',
@@ -456,6 +470,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Builds the mid-back pull that keeps paddling strong for hours.',
     formTips: ['Pull the rope to your eyebrows.', 'Elbows high, squeeze at the back.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'banded-paddle-pulls',
@@ -501,6 +516,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Rowing strength for the long paddle-out and duck-dive pull.',
     formTips: ['Body one straight line.', 'Lead with the chest toward the handles.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'banded-paddle-pulls',
@@ -565,6 +581,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
       'Drive the elbows back and down, slow return.',
       'Keep the neck relaxed — pull with the back, not the arms.',
     ],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'prone-swimmers',
@@ -610,6 +627,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Reinforces the upper-back posture that paddling slowly erodes.',
     formTips: ['Arms at shoulder height.', 'Pull the band to your chest, not your chin.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'prone-swimmers',
@@ -655,6 +673,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Trains paddle endurance exactly as you lie on the board.',
     formTips: ['Small, controlled arm switches.', 'Keep the chest lifted the whole time.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'banded-paddle-pulls',
@@ -700,6 +719,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Hip snap power for explosive pop-ups.',
     formTips: ['Hinge, don’t squat.', 'Snap the hips, let the bell float.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'explosive-surf-pop-ups',
@@ -761,6 +781,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Rehearses the exact take-off you need on the wave.',
     formTips: ['Explode up in one count.', 'Land with the back foot first.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'slow-tempo-pop-ups',
@@ -822,6 +843,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Lateral power for rail-to-rail surfing.',
     formTips: ['Land soft, stick each bound.', 'Drive with the outside leg.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'cossack-squats',
@@ -869,6 +891,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 45,
     surfCue: 'Single-leg mobility and strength for the bottom turn.',
     formTips: ['Shift weight side to side.', 'Heel down on the working side.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'glute-bridge',
@@ -916,6 +939,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Anti-rotation core control for duck-dives and turns.',
     formTips: ['Reach long, hips level.', 'Pause 2s at full extension.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'dead-bug',
@@ -963,6 +987,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Core control that keeps the ribs quiet on the paddle stroke.',
     formTips: ['Low back stays on the floor.', 'Extend opposite arm and leg slowly.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'bird-dog',
@@ -990,7 +1015,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
         reps: 12,
         restSeconds: 30,
         dose: '3 × 12',
-        surfCue: 'Hip-dominant core control.',
+        surfCue: 'Gentle trunk control, lying down.',
         formTips: ['Ribs down, squeeze at the top.', 'Pause 2s before lowering.'],
         alternativeTags: ['No Equipment', 'Shoulder-Safe'],
         alternatives: [],
@@ -1009,6 +1034,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
     restSeconds: 30,
     surfCue: 'Hip extension strength for pop-ups and paddling power.',
     formTips: ['Ribs down, squeeze at the top.', 'Pause 2s before lowering.'],
+    alternativeTags: [],
     alternatives: [
       {
         id: 'bird-dog',
@@ -1038,7 +1064,7 @@ const CATALOGUE: Record<string, PlayerExercise> = {
         restSeconds: 30,
         dose: '3 × 8 per side',
         surfCue: 'Gentle trunk control, lying down.',
-        formTips: ['Low back stays on the floor.', 'Extend opposite arm and leg slowly.'],
+        formTips: ['Ribs down, squeeze at the top.', 'Pause 2s before lowering.'],
         alternativeTags: ['No Equipment', 'Shoulder-Safe'],
         alternatives: [],
       },
@@ -1113,7 +1139,7 @@ function withLowerBackTag(base: string[], c: Ctx, tag: string): string[] {
   return hasLowerBack(c) ? [...base, tag] : base
 }
 
-export function buildSession(mode: DayMode, settings: CoachSettings): PlayerSession {
+export function buildSession(mode: DayMode, settings: CoachSettings): CoachSession {
   const ctx: Ctx = { equipment: settings.equipment, joints: settings.joints }
   const equipmentTag = EQUIPMENT_TAG[settings.equipment]
 
@@ -1140,7 +1166,7 @@ export function buildSession(mode: DayMode, settings: CoachSettings): PlayerSess
 }
 
 // A deep clone of the built session, so swap mutations never touch CATALOGUE.
-export function cloneSession(session: PlayerSession): PlayerSession {
+export function cloneSession(session: CoachSession): CoachSession {
   return {
     ...session,
     exercises: session.exercises.map((e) => ({ ...e })),

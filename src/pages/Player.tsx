@@ -21,10 +21,10 @@ import { PlayerStage } from '@/components/player/PlayerStage'
 import { RestOverlay } from '@/components/player/RestOverlay'
 import { useWorkoutEngine } from '@/hooks/use-workout-engine'
 import { cn } from '@/lib/utils'
-import type { PlayerSession } from '@/data/player-types'
+import type { CoachSession } from '@/data/player-types'
 
 interface PlayerProps {
-  session: PlayerSession | null
+  session: CoachSession | null
   onExit: () => void
   onComplete: (summary: { elapsedSeconds: number; exerciseCount: number }) => void
 }
@@ -42,7 +42,14 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
   const swapWasRunningRef = useRef(false)
 
   const engine = useWorkoutEngine(
-    session ?? { title: '', description: '', durationMin: 0, focusTags: [], exercises: [] },
+    session ?? {
+      title: '',
+      description: '',
+      durationMin: 0,
+      equipmentTag: '',
+      focusTags: [],
+      exercises: [],
+    },
     {
       soundOn,
       onFinish: () => {
@@ -329,3 +336,5 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
     </div>
   )
 }
+
+export default Player

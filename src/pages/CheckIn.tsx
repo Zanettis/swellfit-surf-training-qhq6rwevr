@@ -180,3 +180,5 @@ export function CheckIn({ summary, focusTags, onDone }: CheckInProps) {
     </div>
   )
 }
+
+export default CheckIn
