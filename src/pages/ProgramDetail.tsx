@@ -11,9 +11,9 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react'
-import { useSwellFit } from '../../context/SwellFitContext'
-import { SWELLFIT_PROGRAMS } from '../../data/programs'
-import { useToast } from '../../hooks/use-toast'
+import { useSwellFit } from '../context/SwellFitContext'
+import { SWELLFIT_PROGRAMS } from '../data/programs'
+import { useToast } from '../hooks/use-toast'
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>()
