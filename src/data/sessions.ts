@@ -3,6 +3,7 @@
 // All exercise copy, doses, ids, cues and alternatives are byte-identical to
 // the previous file; only the added lines are new.
 
+import { EXTRA_CATALOGUE } from './exercises-extra'
 import type {
   CoachSession,
   CoachSettings,
@@ -10,6 +11,7 @@ import type {
   EquipmentOption,
   JointOption,
   PlayerExercise,
+  PhaseName,
 } from './player-types'
 export type {
   Exercise,
@@ -21,6 +23,7 @@ export type {
   EquipmentOption,
   JointOption,
   CoachSettings,
+  PhaseName,
 } from './player-types'
 
 export const DEFAULT_SETTINGS: CoachSettings = { time: 'full', equipment: 'bands', joints: [] }
@@ -41,6 +44,7 @@ export const EQUIPMENT_TAG: Record<EquipmentOption, string> = {
 
 /** Catalogue: the full data the player reads (dose, cues, tips, alternatives, videoUrl). */
 const CATALOGUE: Record<string, PlayerExercise> = {
+  ...EXTRA_CATALOGUE,
   'thoracic-open-books': {
     id: 'thoracic-open-books',
     name: 'Thoracic Open Books',
