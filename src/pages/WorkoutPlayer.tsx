@@ -46,7 +46,9 @@ export default function WorkoutPlayer() {
 
   // Completion check-in modal
   const [showCompletionModal, setShowCompletionModal] = useState(false)
-  const [sessionIntensity, setSessionIntensity] = useState<'Too Easy' | 'Just Right' | 'Brutal'>('Just Right')
+  const [sessionIntensity, setSessionIntensity] = useState<'Too Easy' | 'Just Right' | 'Brutal'>(
+    'Just Right',
+  )
   const [jointDiscomfort, setJointDiscomfort] = useState<'none' | 'shoulder' | 'lower-back'>('none')
   const [adaptationMessage, setAdaptationMessage] = useState<string>('')
 
@@ -60,7 +62,7 @@ export default function WorkoutPlayer() {
     const swaps = getValidSwapsForExercise(
       currentEx,
       profile.activeEquipmentChip,
-      profile.injuryGuardrails
+      profile.injuryGuardrails,
     )
     setSwapCandidates(swaps)
     setShowSwapSheet(true)
@@ -158,7 +160,8 @@ export default function WorkoutPlayer() {
   const handleSubmitCheckIn = () => {
     let explanation = 'Session load calibrated perfectly.'
     if (jointDiscomfort === 'shoulder') {
-      explanation = 'Next session drops load volume 10% and adds targeted thoracic & rotator cuff mobility.'
+      explanation =
+        'Next session drops load volume 10% and adds targeted thoracic & rotator cuff mobility.'
     } else if (jointDiscomfort === 'lower-back') {
       explanation = 'Next session excludes lumbar torsion and prioritizes anterior core bracing.'
     } else if (sessionIntensity === 'Brutal') {
@@ -250,14 +253,7 @@ export default function WorkoutPlayer() {
             {/* Circular Countdown Ring */}
             <div className="relative w-44 h-44 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90">
-                <circle
-                  cx="88"
-                  cy="88"
-                  r="78"
-                  stroke="#141C24"
-                  strokeWidth="8"
-                  fill="none"
-                />
+                <circle cx="88" cy="88" r="78" stroke="#141C24" strokeWidth="8" fill="none" />
                 <circle
                   cx="88"
                   cy="88"
@@ -266,9 +262,7 @@ export default function WorkoutPlayer() {
                   strokeWidth="8"
                   fill="none"
                   strokeDasharray={2 * Math.PI * 78}
-                  strokeDashoffset={
-                    (2 * Math.PI * 78) * (1 - secondsRemaining / REST_DURATION)
-                  }
+                  strokeDashoffset={2 * Math.PI * 78 * (1 - secondsRemaining / REST_DURATION)}
                   className="transition-all duration-300 ease-linear"
                 />
               </svg>
@@ -340,9 +334,7 @@ export default function WorkoutPlayer() {
                 <span className="text-base font-semibold text-[#00D1B2] font-mono">
                   {currentEx.repsOrDuration}
                 </span>
-                <span className="text-xs text-[#94A3B8]">
-                  ({secondsRemaining}s target pace)
-                </span>
+                <span className="text-xs text-[#94A3B8]">({secondsRemaining}s target pace)</span>
               </div>
             </div>
 
@@ -405,9 +397,7 @@ export default function WorkoutPlayer() {
           <div className="w-full max-w-md bg-[#141C24] border-t border-[#1E293B] rounded-t-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between pb-2 border-b border-[#1E293B]">
               <div>
-                <h3 className="text-base font-bold text-[#F8FAFC]">
-                  Swap {currentEx.name}
-                </h3>
+                <h3 className="text-base font-bold text-[#F8FAFC]">Swap {currentEx.name}</h3>
                 <p className="text-xs text-[#94A3B8]">
                   Joint-friendly & equipment-matched alternatives
                 </p>
@@ -430,16 +420,12 @@ export default function WorkoutPlayer() {
                   className="w-full p-3.5 rounded-xl bg-[#0B1117] border border-[#1E293B] hover:border-[#00D1B2] text-left transition-all active:scale-[0.98] space-y-1"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-[#F8FAFC]">
-                      {alt.name}
-                    </p>
+                    <p className="text-sm font-bold text-[#F8FAFC]">{alt.name}</p>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00D1B2]/10 text-[#00D1B2]">
                       {alt.requiredEquipment}
                     </span>
                   </div>
-                  <p className="text-xs text-[#94A3B8] leading-tight">
-                    {alt.surfTransferCue}
-                  </p>
+                  <p className="text-xs text-[#94A3B8] leading-tight">{alt.surfTransferCue}</p>
                 </button>
               ))}
             </div>
@@ -455,9 +441,7 @@ export default function WorkoutPlayer() {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#F8FAFC]">
-                Pause or Exit Workout?
-              </h3>
+              <h3 className="text-base font-bold text-[#F8FAFC]">Pause or Exit Workout?</h3>
               <p className="text-xs text-[#94A3B8] mt-1">
                 Your completed progress will not be logged if you exit prematurely.
               </p>
@@ -490,9 +474,7 @@ export default function WorkoutPlayer() {
               <div className="w-12 h-12 rounded-full bg-[#00D1B2]/15 text-[#00D1B2] flex items-center justify-center mx-auto mb-2">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-bold text-[#F8FAFC]">
-                Session Completed!
-              </h3>
+              <h3 className="text-xl font-bold text-[#F8FAFC]">Session Completed!</h3>
               <p className="text-xs text-[#94A3B8] mt-0.5">
                 Adaptive check-in to calibrate your next session volume
               </p>

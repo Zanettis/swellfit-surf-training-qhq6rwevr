@@ -76,9 +76,7 @@ export default function Paywall() {
                   Annual Membership
                 </p>
                 <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <span className="text-2xl font-bold font-mono text-[#F8FAFC]">
-                    $8.33
-                  </span>
+                  <span className="text-2xl font-bold font-mono text-[#F8FAFC]">$8.33</span>
                   <span className="text-xs text-[#94A3B8]">/ month</span>
                 </div>
                 <p className="text-xs text-[#94A3B8] mt-0.5">
@@ -109,13 +107,9 @@ export default function Paywall() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[#F8FAFC]">
-                  Monthly Flex Plan
-                </p>
+                <p className="text-xs font-semibold text-[#F8FAFC]">Monthly Flex Plan</p>
                 <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-lg font-bold font-mono text-[#F8FAFC]">
-                    $19.99
-                  </span>
+                  <span className="text-lg font-bold font-mono text-[#F8FAFC]">$19.99</span>
                   <span className="text-xs text-[#94A3B8]">/ month</span>
                 </div>
                 <p className="text-[11px] text-[#94A3B8]">
@@ -139,7 +133,10 @@ export default function Paywall() {
         <div className="flex items-center justify-between p-3 rounded-xl bg-[#141C24] border border-[#1E293B]">
           <div className="flex items-center gap-2.5">
             <Bell className="w-4 h-4 text-[#F59E0B]" />
-            <label htmlFor="paywall-remind-toggle" className="text-xs font-medium text-[#F8FAFC] cursor-pointer">
+            <label
+              htmlFor="paywall-remind-toggle"
+              className="text-xs font-medium text-[#F8FAFC] cursor-pointer"
+            >
               Remind me 2 days before trial ends
             </label>
           </div>

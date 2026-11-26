@@ -30,9 +30,7 @@ export const BottomTabBar: React.FC = () => {
               to={tab.to}
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center py-1.5 px-3 min-w-[64px] min-h-[48px] rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D1B2] ${
-                  isActive
-                    ? 'text-[#00D1B2] font-semibold'
-                    : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  isActive ? 'text-[#00D1B2] font-semibold' : 'text-[#94A3B8] hover:text-[#F8FAFC]'
                 }`
               }
             >
@@ -44,9 +42,7 @@ export const BottomTabBar: React.FC = () => {
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#00D1B2]" />
                     )}
                   </div>
-                  <span className="text-[11px] tracking-tight mt-1">
-                    {tab.label}
-                  </span>
+                  <span className="text-[11px] tracking-tight mt-1">{tab.label}</span>
                 </>
               )}
             </NavLink>

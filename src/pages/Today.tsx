@@ -56,14 +56,10 @@ export default function Today() {
             <span className="text-4xl font-bold font-mono text-[#F8FAFC] tracking-tight">
               {tripCountdown.daysRemaining}
             </span>
-            <span className="text-sm font-medium text-[#94A3B8]">
-              Days to Surf Trip
-            </span>
+            <span className="text-sm font-medium text-[#94A3B8]">Days to Surf Trip</span>
           </div>
 
-          <p className="text-xs font-semibold text-[#F59E0B] mb-2.5">
-            {tripCountdown.phaseName}
-          </p>
+          <p className="text-xs font-semibold text-[#F59E0B] mb-2.5">{tripCountdown.phaseName}</p>
 
           {/* Amber Progress Bar */}
           <div className="w-full h-1.5 bg-[#0B1117] rounded-full overflow-hidden">
@@ -86,7 +82,8 @@ export default function Today() {
                 Week Streak
               </p>
               <p className="text-xl font-bold font-mono text-[#F8FAFC]">
-                {profile.streakCount} <span className="text-xs font-normal text-[#94A3B8]">sessions</span>
+                {profile.streakCount}{' '}
+                <span className="text-xs font-normal text-[#94A3B8]">sessions</span>
               </p>
             </div>
           </div>
@@ -152,9 +149,7 @@ export default function Today() {
         {/* Surf Day Sub-toggle (Pre / Post Surf) */}
         {profile.oceanContext === 'surf' && (
           <div className="p-2.5 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/25 flex items-center justify-between animate-in fade-in duration-200">
-            <span className="text-xs font-medium text-[#F59E0B]">
-              Routine Timing:
-            </span>
+            <span className="text-xs font-medium text-[#F59E0B]">Routine Timing:</span>
             <div className="flex gap-1.5">
               <button
                 type="button"
@@ -265,9 +260,7 @@ export default function Today() {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold tracking-tight text-[#F8FAFC]">
-            {activeSession.title}
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-[#F8FAFC]">{activeSession.title}</h2>
         </div>
 
         {/* Surf Benefit Tag Pills */}
@@ -289,9 +282,7 @@ export default function Today() {
             onClick={() => setExpandedPreview((v) => !v)}
             className="w-full flex items-center justify-between text-xs font-medium text-[#94A3B8] hover:text-[#F8FAFC] py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D1B2] rounded"
           >
-            <span>
-              Preview Exercises ({activeSession.exercises.length})
-            </span>
+            <span>Preview Exercises ({activeSession.exercises.length})</span>
             {expandedPreview ? (
               <ChevronUp className="w-4 h-4" />
             ) : (
@@ -311,12 +302,8 @@ export default function Today() {
                       {idx + 1}
                     </span>
                     <div>
-                      <p className="text-xs font-semibold text-[#F8FAFC]">
-                        {ex.name}
-                      </p>
-                      <p className="text-[11px] text-[#94A3B8]">
-                        {ex.repsOrDuration}
-                      </p>
+                      <p className="text-xs font-semibold text-[#F8FAFC]">{ex.name}</p>
+                      <p className="text-[11px] text-[#94A3B8]">{ex.repsOrDuration}</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-mono text-[#94A3B8] bg-[#141C24] px-1.5 py-0.5 rounded shrink-0">
@@ -363,7 +350,9 @@ export default function Today() {
             const isToday = idx === todayDayIndex
             return (
               <div key={idx} className="flex flex-col items-center gap-1.5">
-                <span className={`text-[10px] font-bold ${isToday ? 'text-[#00D1B2]' : 'text-[#94A3B8]'}`}>
+                <span
+                  className={`text-[10px] font-bold ${isToday ? 'text-[#00D1B2]' : 'text-[#94A3B8]'}`}
+                >
                   {letter}
                 </span>
                 <div
@@ -371,8 +360,8 @@ export default function Today() {
                     isCompleted
                       ? 'bg-[#00D1B2] text-[#0B1117] font-bold'
                       : isToday
-                      ? 'border-2 border-[#00D1B2] bg-[#0B1117] text-[#00D1B2] font-bold'
-                      : 'bg-[#0B1117] border border-[#1E293B] text-[#94A3B8]'
+                        ? 'border-2 border-[#00D1B2] bg-[#0B1117] text-[#00D1B2] font-bold'
+                        : 'bg-[#0B1117] border border-[#1E293B] text-[#94A3B8]'
                   }`}
                 >
                   {isCompleted ? '✓' : idx + 1}

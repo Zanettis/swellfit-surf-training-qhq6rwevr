@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import {
-  Wind,
-  Play,
-  Pause,
-  RotateCcw,
-  SkipForward,
-  AlertTriangle,
-  Info,
-  Waves,
-} from 'lucide-react'
+import { Wind, Play, Pause, RotateCcw, SkipForward, AlertTriangle, Info, Waves } from 'lucide-react'
 
 type ProtocolType = 'co2' | 'o2'
 
@@ -55,13 +46,9 @@ export default function Breathwork() {
   // Current timer duration & remaining seconds
   const currentRound = rounds[currentRoundIdx] || rounds[0]
   const phaseTotalSeconds =
-    currentPhase === 'breathe'
-      ? currentRound.breatheSeconds
-      : currentRound.holdSeconds
+    currentPhase === 'breathe' ? currentRound.breatheSeconds : currentRound.holdSeconds
 
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(
-    currentRound.breatheSeconds
-  )
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(currentRound.breatheSeconds)
 
   // Switch protocol resets timer
   const handleSelectProtocol = (p: ProtocolType) => {
@@ -127,7 +114,8 @@ export default function Breathwork() {
     setSecondsRemaining(rounds[0].breatheSeconds)
   }
 
-  const isFinalThreeSeconds = currentPhase === 'hold' && secondsRemaining <= 3 && secondsRemaining > 0
+  const isFinalThreeSeconds =
+    currentPhase === 'hold' && secondsRemaining <= 3 && secondsRemaining > 0
 
   return (
     <div className="flex-1 flex flex-col justify-between px-5 pt-5 pb-8 space-y-4">
@@ -137,9 +125,7 @@ export default function Breathwork() {
           <Wind className="w-3.5 h-3.5" />
           <span>Apnea Conditioning</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">
-          Dry-Land Breath Tables
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">Dry-Land Breath Tables</h1>
         <p className="text-xs text-[#94A3B8] mt-0.5">
           Simulate wipeout hold-down panic suppression and CO2 acidosis resilience.
         </p>
@@ -185,14 +171,7 @@ export default function Breathwork() {
         {/* Circular Countdown Ring */}
         <div className="relative w-56 h-56 flex items-center justify-center">
           <svg className="w-full h-full -rotate-90">
-            <circle
-              cx="112"
-              cy="112"
-              r="96"
-              stroke="#0B1117"
-              strokeWidth="10"
-              fill="none"
-            />
+            <circle cx="112" cy="112" r="96" stroke="#0B1117" strokeWidth="10" fill="none" />
             <circle
               cx="112"
               cy="112"
@@ -201,9 +180,7 @@ export default function Breathwork() {
               strokeWidth="10"
               fill="none"
               strokeDasharray={2 * Math.PI * 96}
-              strokeDashoffset={
-                (2 * Math.PI * 96) * (1 - secondsRemaining / phaseTotalSeconds)
-              }
+              strokeDashoffset={2 * Math.PI * 96 * (1 - secondsRemaining / phaseTotalSeconds)}
               className={`transition-all duration-300 ease-linear ${
                 isFinalThreeSeconds ? 'animate-pulse' : ''
               }`}
@@ -247,7 +224,11 @@ export default function Breathwork() {
                 : 'bg-[#00D1B2] text-[#0B1117] hover:bg-[#00B39B]'
             }`}
           >
-            {isActive ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+            {isActive ? (
+              <Pause className="w-4 h-4 fill-current" />
+            ) : (
+              <Play className="w-4 h-4 fill-current" />
+            )}
             <span>{isActive ? 'Pause' : 'Start Table'}</span>
           </button>
 
@@ -277,7 +258,9 @@ export default function Breathwork() {
           <span>How It Maps to Ocean Hold-Downs</span>
         </div>
         <p className="text-xs text-[#94A3B8] leading-relaxed">
-          A typical 6-to-8ft wave hold-down lasts 7–12 seconds, but elevated heart rates cause hypercapnia panic. CO2 tables condition your brainstem to tolerate high carbonic acid levels without involuntary diaphragm spasms or fight-or-flight heart spikes.
+          A typical 6-to-8ft wave hold-down lasts 7–12 seconds, but elevated heart rates cause
+          hypercapnia panic. CO2 tables condition your brainstem to tolerate high carbonic acid
+          levels without involuntary diaphragm spasms or fight-or-flight heart spikes.
         </p>
       </div>
     </div>

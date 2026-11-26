@@ -13,12 +13,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { useSwellFit } from '../context/SwellFitContext'
-import {
-  PrimaryGoal,
-  BoardType,
-  InjuryGuardrail,
-  EquipmentTier,
-} from '../types/swellfit'
+import { PrimaryGoal, BoardType, InjuryGuardrail, EquipmentTier } from '../types/swellfit'
 import { deriveWeek1Schedule } from '../data/engine'
 import { useToast } from '../hooks/use-toast'
 
@@ -34,7 +29,7 @@ export default function Onboarding() {
   const [goal, setGoal] = useState<PrimaryGoal>(profile.primaryGoal)
   const [tripDate, setTripDate] = useState<string>(
     profile.surfTripDate ||
-      new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   )
 
   // Step 2: Board Type
@@ -42,7 +37,7 @@ export default function Onboarding() {
 
   // Step 3: Injury Guardrails (multi-select)
   const [guardrails, setGuardrails] = useState<InjuryGuardrail[]>(
-    profile.injuryGuardrails.length ? profile.injuryGuardrails : ['none']
+    profile.injuryGuardrails.length ? profile.injuryGuardrails : ['none'],
   )
 
   // Step 4: Equipment Tier
@@ -208,12 +203,8 @@ export default function Onboarding() {
                     }`}
                   >
                     <div>
-                      <p className="text-base font-semibold text-[#F8FAFC]">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
-                        {item.desc}
-                      </p>
+                      <p className="text-base font-semibold text-[#F8FAFC]">{item.title}</p>
+                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">{item.desc}</p>
                     </div>
                     <div
                       className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
@@ -234,7 +225,10 @@ export default function Onboarding() {
               <div className="p-4 rounded-2xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <div className="flex items-center gap-2 mb-2 text-[#F59E0B]">
                   <Calendar className="w-4 h-4" />
-                  <label htmlFor="trip-date-input" className="text-xs font-semibold uppercase tracking-wider">
+                  <label
+                    htmlFor="trip-date-input"
+                    className="text-xs font-semibold uppercase tracking-wider"
+                  >
                     Departure Date Picker
                   </label>
                 </div>
@@ -247,7 +241,9 @@ export default function Onboarding() {
                   className="w-full px-3 py-2 rounded-xl bg-[#0B1117] border border-[#1E293B] text-[#F8FAFC] text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]"
                 />
                 <p className="text-xs text-[#94A3B8] mt-2">
-                  Plan automatically snaps to a <span className="text-[#F59E0B] font-semibold">{snappedWeeks}-Week</span> periodized block based on your departure date.
+                  Plan automatically snaps to a{' '}
+                  <span className="text-[#F59E0B] font-semibold">{snappedWeeks}-Week</span>{' '}
+                  periodized block based on your departure date.
                 </p>
               </div>
             )}
@@ -272,19 +268,22 @@ export default function Onboarding() {
                   id: 'shortboard' as BoardType,
                   name: 'Shortboard',
                   focus: 'Prioritizes pop-up explosiveness and duck-dive power',
-                  detail: 'Fast-twitch hip flexion, tight rail compression, and submerged board control.',
+                  detail:
+                    'Fast-twitch hip flexion, tight rail compression, and submerged board control.',
                 },
                 {
                   id: 'midlength' as BoardType,
                   name: 'Midlength / Twin-Fin',
                   focus: 'Balanced paddle volume with pop-up speed work',
-                  detail: 'Flow-state shoulder endurance with smooth rail-to-rail rotational transitions.',
+                  detail:
+                    'Flow-state shoulder endurance with smooth rail-to-rail rotational transitions.',
                 },
                 {
                   id: 'longboard' as BoardType,
                   name: 'Longboard',
                   focus: 'Hip mobility and paddle tolerance over explosive power',
-                  detail: 'Upright posture tolerance, cross-step balance, and continuous paddle pacing.',
+                  detail:
+                    'Upright posture tolerance, cross-step balance, and continuous paddle pacing.',
                 },
               ].map((item) => {
                 const isSelected = boardType === item.id
@@ -300,15 +299,9 @@ export default function Onboarding() {
                     }`}
                   >
                     <div>
-                      <p className="text-base font-semibold text-[#F8FAFC]">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-[#00D1B2] font-medium mt-1">
-                        {item.focus}
-                      </p>
-                      <p className="text-xs text-[#94A3B8] mt-1">
-                        {item.detail}
-                      </p>
+                      <p className="text-base font-semibold text-[#F8FAFC]">{item.name}</p>
+                      <p className="text-xs text-[#00D1B2] font-medium mt-1">{item.focus}</p>
+                      <p className="text-xs text-[#94A3B8] mt-1">{item.detail}</p>
                     </div>
                     <div
                       className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
@@ -379,12 +372,8 @@ export default function Onboarding() {
                     }`}
                   >
                     <div>
-                      <p className="text-base font-semibold text-[#F8FAFC]">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
-                        {item.desc}
-                      </p>
+                      <p className="text-base font-semibold text-[#F8FAFC]">{item.name}</p>
+                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">{item.desc}</p>
                     </div>
                     <div
                       className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
@@ -450,12 +439,8 @@ export default function Onboarding() {
                     }`}
                   >
                     <div>
-                      <p className="text-base font-semibold text-[#F8FAFC]">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
-                        {item.desc}
-                      </p>
+                      <p className="text-base font-semibold text-[#F8FAFC]">{item.name}</p>
+                      <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">{item.desc}</p>
                     </div>
                     <div
                       className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
@@ -503,7 +488,8 @@ export default function Onboarding() {
                 <div className="flex items-start gap-2 text-xs text-[#94A3B8]">
                   <Shield className="w-3.5 h-3.5 text-[#00D1B2] shrink-0 mt-0.5" />
                   <span>
-                    Heavy overhead pressing excluded; external rotation & thoracic extension prioritized.
+                    Heavy overhead pressing excluded; external rotation & thoracic extension
+                    prioritized.
                   </span>
                 </div>
               )}
@@ -512,7 +498,8 @@ export default function Onboarding() {
                 <div className="flex items-start gap-2 text-xs text-[#94A3B8]">
                   <Shield className="w-3.5 h-3.5 text-[#00D1B2] shrink-0 mt-0.5" />
                   <span>
-                    Lumbar shear loads eliminated; anterior core and gentle spinal decompression added.
+                    Lumbar shear loads eliminated; anterior core and gentle spinal decompression
+                    added.
                   </span>
                 </div>
               )}
@@ -548,11 +535,11 @@ export default function Onboarding() {
                       {day.dayLabel}
                     </span>
                     <div>
-                      <p className="text-xs font-semibold text-[#F8FAFC]">
-                        {day.title}
-                      </p>
+                      <p className="text-xs font-semibold text-[#F8FAFC]">{day.title}</p>
                       <p className="text-[11px] text-[#94A3B8]">
-                        {day.isRest ? 'Active Recovery / Ocean Float' : `${day.exercises.length} calibrated surf drills`}
+                        {day.isRest
+                          ? 'Active Recovery / Ocean Float'
+                          : `${day.exercises.length} calibrated surf drills`}
                       </p>
                     </div>
                   </div>
@@ -603,9 +590,7 @@ export default function Onboarding() {
                       Annual Membership
                     </p>
                     <div className="flex items-baseline gap-1.5 mt-0.5">
-                      <span className="text-2xl font-bold font-mono text-[#F8FAFC]">
-                        $8.33
-                      </span>
+                      <span className="text-2xl font-bold font-mono text-[#F8FAFC]">$8.33</span>
                       <span className="text-xs text-[#94A3B8]">/ month</span>
                     </div>
                     <p className="text-xs text-[#94A3B8] mt-0.5">
@@ -636,13 +621,9 @@ export default function Onboarding() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold text-[#F8FAFC]">
-                      Monthly Flex Plan
-                    </p>
+                    <p className="text-xs font-semibold text-[#F8FAFC]">Monthly Flex Plan</p>
                     <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className="text-lg font-bold font-mono text-[#F8FAFC]">
-                        $19.99
-                      </span>
+                      <span className="text-lg font-bold font-mono text-[#F8FAFC]">$19.99</span>
                       <span className="text-xs text-[#94A3B8]">/ month</span>
                     </div>
                     <p className="text-[11px] text-[#94A3B8]">
@@ -666,7 +647,10 @@ export default function Onboarding() {
             <div className="flex items-center justify-between p-3 rounded-xl bg-[#141C24] border border-[#1E293B]">
               <div className="flex items-center gap-2.5">
                 <Bell className="w-4 h-4 text-[#F59E0B]" />
-                <label htmlFor="remind-toggle" className="text-xs font-medium text-[#F8FAFC] cursor-pointer">
+                <label
+                  htmlFor="remind-toggle"
+                  className="text-xs font-medium text-[#F8FAFC] cursor-pointer"
+                >
                   Remind me 2 days before my trial ends
                 </label>
               </div>
@@ -681,7 +665,8 @@ export default function Onboarding() {
 
             {/* Fine print */}
             <p className="text-[11px] text-center text-[#94A3B8]/70">
-              No immediate charge. 7 days free trial. 1-Click cancellation inside Profile at any time.
+              No immediate charge. 7 days free trial. 1-Click cancellation inside Profile at any
+              time.
             </p>
           </div>
         )}

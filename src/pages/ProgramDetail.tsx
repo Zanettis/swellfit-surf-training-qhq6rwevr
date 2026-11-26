@@ -85,13 +85,9 @@ export default function ProgramDetail() {
           </span>
         </div>
 
-        <h1 className="text-xl font-bold tracking-tight text-[#F8FAFC]">
-          {program.name}
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight text-[#F8FAFC]">{program.name}</h1>
 
-        <p className="text-xs text-[#94A3B8] leading-relaxed">
-          {program.focus}
-        </p>
+        <p className="text-xs text-[#94A3B8] leading-relaxed">{program.focus}</p>
 
         {/* Set as My Program Primary Action */}
         <button
@@ -122,15 +118,11 @@ export default function ProgramDetail() {
       <div className="p-3.5 rounded-2xl bg-[#0B1117] border border-[#00D1B2]/30 flex items-start gap-2.5">
         <Shield className="w-4 h-4 text-[#00D1B2] shrink-0 mt-0.5" />
         <div className="space-y-0.5">
-          <p className="text-xs font-bold text-[#F8FAFC]">
-            Injury Guardrails Active
-          </p>
+          <p className="text-xs font-bold text-[#F8FAFC]">Injury Guardrails Active</p>
           <p className="text-[11px] text-[#94A3B8] leading-relaxed">
             {program.injuryNotes} Your profile's joints (
-            <span className="text-[#00D1B2]">
-              {profile.injuryGuardrails.join(', ')}
-            </span>
-            ) are continuously protected across every scheduled set.
+            <span className="text-[#00D1B2]">{profile.injuryGuardrails.join(', ')}</span>) are
+            continuously protected across every scheduled set.
           </p>
         </div>
       </div>
@@ -149,19 +141,13 @@ export default function ProgramDetail() {
               className="p-3.5 rounded-xl bg-[#141C24] border border-[#1E293B] space-y-1.5"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#00D1B2]">
-                  {phase.weeksRange}
-                </span>
+                <span className="text-xs font-bold text-[#00D1B2]">{phase.weeksRange}</span>
                 <span className="text-[10px] font-mono text-[#94A3B8] bg-[#0B1117] px-2 py-0.5 rounded">
                   {phase.sessionsPerWeek} sessions/wk
                 </span>
               </div>
-              <p className="text-sm font-bold text-[#F8FAFC]">
-                {phase.name}
-              </p>
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                {phase.focus}
-              </p>
+              <p className="text-sm font-bold text-[#F8FAFC]">{phase.name}</p>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">{phase.focus}</p>
             </div>
           ))}
         </div>
@@ -181,12 +167,8 @@ export default function ProgramDetail() {
               className="p-3 rounded-xl bg-[#141C24] border border-[#1E293B] flex items-center justify-between gap-2"
             >
               <div>
-                <p className="text-[10px] font-mono text-[#94A3B8] uppercase">
-                  {session.dayLabel}
-                </p>
-                <p className="text-xs font-semibold text-[#F8FAFC]">
-                  {session.sessionTitle}
-                </p>
+                <p className="text-[10px] font-mono text-[#94A3B8] uppercase">{session.dayLabel}</p>
+                <p className="text-xs font-semibold text-[#F8FAFC]">{session.sessionTitle}</p>
                 <div className="flex gap-1.5 mt-1">
                   {session.focusTags.map((tag) => (
                     <span

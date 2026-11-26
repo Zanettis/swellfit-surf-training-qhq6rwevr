@@ -1,15 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Layers,
-  ArrowRight,
-  Download,
-  Check,
-  Clock,
-  Sparkles,
-  Shield,
-  Plane,
-} from 'lucide-react'
+import { Layers, ArrowRight, Download, Check, Clock, Sparkles, Shield, Plane } from 'lucide-react'
 import { useSwellFit } from '../context/SwellFitContext'
 import { SWELLFIT_PROGRAMS } from '../data/programs'
 import { useToast } from '../hooks/use-toast'
@@ -40,9 +31,7 @@ export default function Programs() {
           <Layers className="w-3.5 h-3.5" />
           <span>Periodized Macrocycles</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">
-          Training Programs
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">Training Programs</h1>
         <p className="text-xs text-[#94A3B8] mt-0.5">
           Sports-science roadmaps for trips, paddle power, joint prehab, and rail mechanics.
         </p>
@@ -111,9 +100,7 @@ export default function Programs() {
               </div>
 
               {/* Focus Line */}
-              <p className="text-xs text-[#94A3B8] leading-relaxed">
-                {program.focus}
-              </p>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">{program.focus}</p>
 
               {/* Bottom Meta & Progress */}
               <div className="pt-2 border-t border-[#1E293B] flex items-center justify-between text-xs">

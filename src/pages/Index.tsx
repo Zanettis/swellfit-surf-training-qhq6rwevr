@@ -55,7 +55,8 @@ export default function Index() {
           Adaptive Sports-Science Programming for Surfers
         </h1>
         <p className="text-base text-[#94A3B8] text-center max-w-xs mx-auto mb-8">
-          Endless paddle stamina, explosive pop-ups, and bulletproof joint longevity tailored to your board and injury profile.
+          Endless paddle stamina, explosive pop-ups, and bulletproof joint longevity tailored to
+          your board and injury profile.
         </p>
 
         {/* Feature Highlights Grid */}
@@ -65,9 +66,7 @@ export default function Index() {
               <Compass className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#F8FAFC]">
-                Ocean Context Switcher
-              </p>
+              <p className="text-sm font-semibold text-[#F8FAFC]">Ocean Context Switcher</p>
               <p className="text-xs text-[#94A3B8]">
                 Instantly swap between full training and pre/post surf activation.
               </p>
@@ -79,9 +78,7 @@ export default function Index() {
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#F8FAFC]">
-                Joint & Injury Guardrails
-              </p>
+              <p className="text-sm font-semibold text-[#F8FAFC]">Joint & Injury Guardrails</p>
               <p className="text-xs text-[#94A3B8]">
                 Rotator cuff & lower-back prehab prioritized; high-risk loading excluded.
               </p>
@@ -93,9 +90,7 @@ export default function Index() {
               <Dumbbell className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-[#F8FAFC]">
-                Surf Trip Countdown Engine
-              </p>
+              <p className="text-sm font-semibold text-[#F8FAFC]">Surf Trip Countdown Engine</p>
               <p className="text-xs text-[#94A3B8]">
                 Periodized 2, 4, or 6-week blocks aligned with your departure date.
               </p>
