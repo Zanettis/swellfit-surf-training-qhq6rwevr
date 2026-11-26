@@ -24,6 +24,8 @@ import type { CoachSession } from '@/data/player-types'
 
 interface PlayerProps {
   session: CoachSession | null
+  /** Which exercise (0-based) the session should open on. */
+  startIndex?: number
   onExit: () => void
   onComplete: (summary: { elapsedSeconds: number; exerciseCount: number }) => void
 }
@@ -34,7 +36,7 @@ function formatClock(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export function Player({ session, onExit, onComplete }: PlayerProps) {
+export function Player({ session, startIndex, onExit, onComplete }: PlayerProps) {
   const [soundOn, setSoundOn] = useState(true)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [swapOpen, setSwapOpen] = useState(false)
@@ -51,6 +53,7 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
     },
     {
       soundOn,
+      startIndex,
       onFinish: () => {
         onComplete({
           elapsedSeconds: engineRef.current?.elapsedSeconds ?? 0,
@@ -194,19 +197,31 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
         ) : (
           <>
             <h2 className="text-center text-2xl font-bold tracking-tight">{current.name}</h2>
-            <p className="mt-1 text-center text-sm text-white/50">{current.surfCue}</p>
+            <p className="mt-1 line-clamp-2 text-center text-sm text-white/50">{current.surfCue}</p>
 
-            <div className="mt-6 w-full max-w-md">
+            {/* shrink-0: the media box keeps its size instead of being crushed
+                or pushed off-viewport by the tall timer + buttons below */}
+            <div className="mt-4 w-full max-w-md shrink-0">
               <PlayerStage exercise={current} phase={engine.phase} />
             </div>
 
-            <div className="mt-8 flex flex-col items-center">
+            <div className="mt-5 flex min-h-0 flex-col items-center">
               {current.type === 'time' ? (
                 <>
-                  <p className="text-7xl font-bold tabular-nums tracking-tight">
+                  <p
+                    aria-live="off"
+                    className="text-6xl font-bold tabular-nums tracking-tight sm:text-7xl"
+                  >
                     {formatClock(engine.remaining)}
                   </p>
-                  <div className="mt-4 h-1.5 w-56 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    role="progressbar"
+                    aria-label="Time left in this set"
+                    aria-valuemin={0}
+                    aria-valuemax={engine.total}
+                    aria-valuenow={engine.remaining}
+                    className="mt-3 h-1.5 w-48 overflow-hidden rounded-full bg-white/10 sm:w-56"
+                  >
                     <div
                       className="h-full rounded-full bg-[#00D1B2] motion-safe:transition-[width] motion-safe:duration-100 motion-safe:ease-linear"
                       style={{
@@ -218,7 +233,10 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
                 </>
               ) : (
                 <>
-                  <p className="text-7xl font-bold tabular-nums tracking-tight">
+                  <p
+                    aria-live="off"
+                    className="text-6xl font-bold tabular-nums tracking-tight sm:text-7xl"
+                  >
                     {current.reps ?? 0}
                     <span className="ml-2 align-middle text-base font-medium uppercase tracking-widest text-white/50">
                       reps
@@ -232,7 +250,7 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
                   <Button
                     type="button"
                     size="lg"
-                    className="mt-8 h-14 w-full max-w-xs rounded-full bg-[#00D1B2] text-base font-semibold text-[#090C10] hover:bg-[#00D1B2]/90"
+                    className="mt-5 h-12 w-full max-w-xs rounded-full bg-[#00D1B2] text-base font-semibold text-[#090C10] hover:bg-[#00D1B2]/90"
                     onClick={engine.completeSet}
                   >
                     Set Complete
@@ -245,22 +263,29 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
       </div>
 
       {/* ── Sweaty-hands bottom control bar ──────────────────────────── */}
-      <div className="flex items-center justify-center gap-8 pb-10 pt-4">
+      <div className="flex shrink-0 items-center justify-center gap-8 pb-8 pt-2">
         <Button
           type="button"
           variant="outline"
           size="icon"
-          aria-label="Previous set or exercise"
+          aria-label={
+            engine.setNumber > 1
+              ? `Restart as set ${engine.setNumber - 1}`
+              : engine.nextExercise
+                ? `Back to ${engine.prevTargetLabel}`
+                : 'No previous exercise'
+          }
+          disabled={engine.setNumber === 1 && engine.exerciseIndex === 0}
           onClick={engine.goPrev}
-          className="h-14 w-14 rounded-full border-[#1E2633] bg-[#131820] text-white/80 hover:bg-[#1E2633] hover:text-white"
+          className="h-14 w-14 rounded-full border-[#1E2633] bg-[#131820] text-white/80 hover:bg-[#1E2633] hover:text-white disabled:opacity-40"
         >
-          {/* lucide has no dedicated prev icon; SkipBack works mirrored */}
+          {/* lucide has no dedicated prev icon; SkipForward works mirrored */}
           <SkipForward className="h-5 w-5 rotate-180" aria-hidden="true" />
         </Button>
         <Button
           type="button"
           size="icon"
-          aria-label={engine.running ? 'Pause' : 'Play'}
+          aria-label={engine.running ? 'Pause' : 'Resume'}
           onClick={engine.toggleRunning}
           className="h-20 w-20 rounded-full bg-[#00D1B2] text-[#090C10] hover:bg-[#00D1B2]/90"
         >
@@ -274,7 +299,9 @@ export function Player({ session, onExit, onComplete }: PlayerProps) {
           type="button"
           variant="outline"
           size="icon"
-          aria-label="Skip to next"
+          aria-label={
+            engine.nextExercise ? `Skip to ${engine.nextExercise.name}` : 'Finish session'
+          }
           onClick={engine.goNext}
           className="h-14 w-14 rounded-full border-[#1E2633] bg-[#131820] text-white/80 hover:bg-[#1E2633] hover:text-white"
         >

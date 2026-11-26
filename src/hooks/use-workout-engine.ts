@@ -3,6 +3,15 @@
 // One interval derives remaining time from a wall-clock deadline, so pausing,
 // skipping, swapping and +15s never accumulate drift; every phase change
 // re-arms the deadline exactly once.
+//
+// State machine invariant (the bug this guards against): the ticking interval
+// MUST keep running whenever running=true and phase!=='done'. Two known ways it
+// silently stopped before, both fixed here:
+// 1) advance() and goPrev() must never `arm()` while a block is still live
+//    (arm() overwrites the deadline of the block that is still ticking).
+// 2) The interval must not depend on `phase` or `total`: those changing
+//    re-created the interval mid-block and dropped ticks. It reads them
+//    through refs instead, so ONE interval lives for the whole session.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -22,10 +31,16 @@ export interface WorkoutEngine {
   session: PlayerSession // live copy: swaps applied here
   current: PlayerExercise | undefined
   next: PlayerExercise | undefined // what the rest screen shows as UP NEXT
+  /** The exercise after the current one (for the Skip button's aria-label). */
+  nextExercise: PlayerExercise | undefined
+  /** What the Previous button will land on, phrased for a screen reader. */
+  prevTargetLabel: string
   exerciseCount: number
   completeSet: () => void
   toggleRunning: () => void
+  /** End the current set (or rest block) now — exactly as if the timer ran out. */
   goNext: () => void
+  /** Restart the current set; from set 1, jump to the previous exercise's set 1. */
   goPrev: () => void
   addRest: (extraSeconds?: number) => void
   skipRest: () => void
@@ -44,7 +59,7 @@ function clone<T>(value: T): T {
 
 export function useWorkoutEngine(
   input: PlayerSession,
-  opts: { soundOn: boolean; onFinish: () => void },
+  opts: { soundOn: boolean; onFinish: () => void; startIndex?: number },
 ): WorkoutEngine {
   const { soundOn, onFinish } = opts
 
@@ -52,10 +67,12 @@ export function useWorkoutEngine(
   const [exercises, setExercises] = useState<PlayerExercise[]>(() =>
     input.exercises.map((e) => clone(e)),
   )
-  const [exerciseIndex, setExerciseIndex] = useState(0)
+  const [exerciseIndex, setExerciseIndex] = useState(() =>
+    Math.min(Math.max(0, opts.startIndex ?? 0), Math.max(0, input.exercises.length - 1)),
+  )
   const [setNumber, setSetNumber] = useState(1)
   const [phase, setPhase] = useState<Phase>('work')
-  const [total, setTotal] = useState(() => blockLength(input.exercises[0]))
+  const [total, setTotal] = useState(() => blockLength(input.exercises[exerciseIndex]))
   const [remaining, setRemaining] = useState(total)
   const [running, setRunning] = useState(true)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -67,6 +84,12 @@ export function useWorkoutEngine(
   soundRef.current = soundOn
   const onFinishRef = useRef(onFinish)
   onFinishRef.current = onFinish
+  // Live phase/total mirrors, so the single tick effect never needs to depend
+  // on them (a dependency there re-created the interval mid-block).
+  const phaseRef = useRef<Phase>('work')
+  phaseRef.current = phase
+  const totalRef = useRef(total)
+  totalRef.current = total
 
   const arm = useCallback((lengthSeconds: number) => {
     deadlineRef.current = Date.now() + lengthSeconds * MS_PER_SEC
@@ -81,7 +104,7 @@ export function useWorkoutEngine(
     const lastSet = setNumber >= ex.sets
     const lastExercise = exerciseIndex >= exercises.length - 1
 
-    if (phase === 'work') {
+    if (phaseRef.current === 'work') {
       if (lastSet && lastExercise) {
         finishedRef.current = true
         setPhase('done')
@@ -90,6 +113,8 @@ export function useWorkoutEngine(
         onFinishRef.current()
         return
       }
+      // The CURRENT work block just ended: re-arm the deadline for the rest
+      // block that replaces it (never arm a block that is still live).
       setPhase('rest')
       setTotal(ex.restSeconds)
       setRemaining(ex.restSeconds)
@@ -110,21 +135,25 @@ export function useWorkoutEngine(
       arm(len)
       if (soundRef.current) beepRestOver()
     }
-  }, [arm, exerciseIndex, exercises, phase, setNumber])
+  }, [arm, exerciseIndex, exercises, setNumber])
 
-  // The single tick: 100ms, derives remaining from the deadline (zero drift),
-  // fires 3-2-1 beeps and advances exactly once per block.
+  // The single tick for the WHOLE session: 100ms, derives remaining from the
+  // deadline (zero drift), fires 3-2-1 beeps and advances exactly once per
+  // block. Depends ONLY on [running]: phase and total are read through refs
+  // so a phase change re-arms the deadline instead of killing the interval —
+  // this is what made the work timer freeze while rest ticked.
   useEffect(() => {
-    if (!running || phase === 'done') return
+    if (!running) return
     const id = window.setInterval(() => {
-      setElapsedSeconds((s) => s + 0.1)
       const leftMs = deadlineRef.current - Date.now()
       const leftSec = Math.max(0, Math.ceil(leftMs / MS_PER_SEC))
+      const ph = phaseRef.current
+      const tot = totalRef.current
       // 3-2-1 beeps: once per second tick, only for real countdown blocks.
       if (
-        phase === 'work' &&
+        ph === 'work' &&
         soundRef.current &&
-        total > 5 &&
+        tot > 5 &&
         leftSec >= 1 &&
         leftSec <= 3 &&
         leftSec < lastLeftRef.current
@@ -134,14 +163,14 @@ export function useWorkoutEngine(
       lastLeftRef.current = leftSec
       setRemaining(leftSec)
       // Rep blocks (total === 1) never auto-advance: they wait for Set Complete.
-      if (leftMs <= 0 && (phase === 'rest' || total > 1)) advance()
+      if (leftMs <= 0 && (ph === 'rest' || tot > 1)) advance()
     }, 100)
     return () => window.clearInterval(id)
-  }, [advance, phase, running, total])
+  }, [advance, running])
 
   const completeSet = useCallback(() => {
-    if (phase === 'work') advance()
-  }, [advance, phase])
+    if (phaseRef.current === 'work') advance()
+  }, [advance])
 
   const pause = useCallback(() => {
     if (phase !== 'done') setRunning(false)
@@ -158,21 +187,22 @@ export function useWorkoutEngine(
     else resume()
   }, [pause, resume, running])
 
-  /** Skip: the current block ends now, exactly as if its timer had run out. */
+  /** Skip: end the current set (or the rest block) right now. */
   const goNext = useCallback(() => {
-    if (phase !== 'done') advance()
-  }, [advance, phase])
+    if (phaseRef.current !== 'done') advance()
+  }, [advance])
 
-  /** Previous: restart the current set; from set 1, jump to the previous one. */
+  /** Previous: restart the current set; from set 1, jump to the previous exercise's set 1. */
   const goPrev = useCallback(() => {
     finishedRef.current = false
+    const wasRunning = phaseRef.current !== 'done'
     let idx = exerciseIndex
     let st = setNumber
     if (st > 1) {
       st -= 1
     } else if (idx > 0) {
       idx -= 1
-      st = exercises[idx]?.sets ?? 1
+      st = 1
     }
     const len = blockLength(exercises[idx])
     setExerciseIndex(idx)
@@ -181,41 +211,40 @@ export function useWorkoutEngine(
     setTotal(len)
     setRemaining(len)
     arm(len)
-    setRunning(true)
+    if (wasRunning) setRunning(true)
   }, [arm, exerciseIndex, exercises, setNumber])
 
-  const addRest = useCallback(
-    (extraSeconds = 15) => {
-      if (phase !== 'rest') return
-      setTotal((t) => t + extraSeconds)
-      setRemaining((r) => {
-        deadlineRef.current += extraSeconds * MS_PER_SEC
-        return r + extraSeconds
-      })
-    },
-    [phase],
-  )
+  const addRest = useCallback((extraSeconds = 15) => {
+    if (phaseRef.current !== 'rest') return
+    setTotal((t) => t + extraSeconds)
+    setRemaining((r) => {
+      deadlineRef.current += extraSeconds * MS_PER_SEC
+      return r + extraSeconds
+    })
+  }, [])
 
   const skipRest = useCallback(() => {
-    if (phase === 'rest') advance()
-  }, [advance, phase])
+    if (phaseRef.current === 'rest') advance()
+  }, [advance])
 
   /** Replace the exercise at `index` with a cloned alternative, same slot. */
   const swapExercise = useCallback(
     (index: number, replacement: PlayerExercise) => {
       const incoming = clone(replacement)
       setExercises((prev) => prev.map((e, i) => (i === index ? incoming : e)))
-      if (index === exerciseIndex && phase === 'work') {
+      if (index === exerciseIndex && phaseRef.current === 'work') {
+        // Re-arm only the FRESH block length when paused (the live deadline
+        // still belongs to the block that is ticking — never clobber it).
         const len = blockLength(incoming)
         setTotal(len)
         setRemaining((r) => {
-          const next = running ? len : Math.min(r, len)
-          arm(next)
-          return next
+          if (running) return Math.min(r, len)
+          arm(len)
+          return len
         })
       }
     },
-    [arm, exerciseIndex, phase, running],
+    [arm, exerciseIndex, running],
   )
 
   const session = useMemo<PlayerSession>(() => ({ ...input, exercises }), [exercises, input])
@@ -223,6 +252,18 @@ export function useWorkoutEngine(
   const restEndsExercise = phase === 'rest' && setNumber >= (current?.sets ?? 1)
   const next =
     phase === 'rest' ? (restEndsExercise ? exercises[exerciseIndex + 1] : current) : undefined
+  // "EXERCISE n OF m" and the Previous button's target both read from these.
+  const nextExercise = exercises[exerciseIndex + 1]
+  const prevTarget = (() => {
+    if (setNumber > 1) return current
+    if (exerciseIndex > 0) return exercises[exerciseIndex - 1]
+    return undefined
+  })()
+  const prevTargetLabel = prevTarget
+    ? setNumber > 1
+      ? `Repeat Set ${setNumber - 1} of ${current?.sets ?? 1}`
+      : `Back to ${prevTarget.name}, Set 1 of ${prevTarget.sets}`
+    : 'This is the first exercise'
 
   return {
     phase,
@@ -235,6 +276,8 @@ export function useWorkoutEngine(
     session,
     current,
     next,
+    nextExercise,
+    prevTargetLabel,
     exerciseCount: exercises.length,
     completeSet,
     toggleRunning,

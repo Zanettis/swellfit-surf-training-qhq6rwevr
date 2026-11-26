@@ -27,7 +27,7 @@ export default function Coach() {
   const [adaptOpen, setAdaptOpen] = useState(false)
   const [screen, setScreen] = useState<Screen>('coach')
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null)
-  const [, setStartExercise] = useState(0)
+  const [startExercise, setStartExercise] = useState(0)
   const [summary, setSummary] = useState<{ elapsedSeconds: number; exerciseCount: number } | null>(
     null,
   )
@@ -72,7 +72,12 @@ export default function Coach() {
 
   if (screen === 'player' && activeSession) {
     return (
-      <Player session={activeSession} onExit={handlePlayerExit} onComplete={handlePlayerComplete} />
+      <Player
+        session={activeSession}
+        startIndex={startExercise}
+        onExit={handlePlayerExit}
+        onComplete={handlePlayerComplete}
+      />
     )
   }
 

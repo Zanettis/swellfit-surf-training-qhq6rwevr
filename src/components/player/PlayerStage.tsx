@@ -32,9 +32,8 @@ interface StageProps {
   dimmed?: boolean
 }
 
-export function PlayerStage({ exercise, phase, dimmed }: StageProps) {
+export function PlayerStage({ exercise, dimmed }: StageProps) {
   const [cuesOpen, setCuesOpen] = useState(false)
-  const resting = phase === 'rest'
 
   return (
     <div className="relative">
@@ -127,9 +126,6 @@ export function PlayerStage({ exercise, phase, dimmed }: StageProps) {
           for execution points.
         </p>
       )}
-
-      {/* surf transfer cue */}
-      {!resting && <p className="mt-3 text-center text-sm text-white/50">{exercise.surfCue}</p>}
     </div>
   )
 }
