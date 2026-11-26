@@ -1,46 +1,70 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
-/* Space Grotesk Google Font for technical athletic design */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* Inter (Google Fonts): the one typeface of SwellFit */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Coach screen: the session card and list rise in when the session changes. Reduced motion keeps the content, drops the travel. */
+@keyframes coach-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer utilities {
+  .animate-coach-rise {
+    animation: coach-rise 280ms ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-coach-rise {
+      animation: none;
+    }
+  }
+}
+
 @layer base {
   :root {
     color-scheme: dark;
-    /* Athletic Dark Mode Tokens: bg #0B1117 (210 34% 7%), card #141C24 (210 29% 11%), border #1E293B (217 33% 17%) */
-    /* Primary Accent Teal #00D1B2 (171 100% 41%), Amber #F59E0B (38 92% 50%) */
-    --background: 210 34% 7%;
-    --foreground: 210 40% 98%;
+    /* SwellFit tokens: background #090C10 (215 28% 5%), surface #131820 (217 26% 10%),
+       hairline #1E2633 (217 26% 16%), text #FFFFFF, muted #8B95A5 (217 13% 60%),
+       ocean teal #00D1B2 (171 100% 41%) used only for the primary action */
+    --background: 215 28% 5%;
+    --foreground: 0 0% 100%;
 
-    --card: 210 29% 11%;
-    --card-foreground: 210 40% 98%;
+    --card: 217 26% 10%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 210 29% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 217 26% 10%;
+    --popover-foreground: 0 0% 100%;
 
     --primary: 171 100% 41%;
-    --primary-foreground: 210 34% 7%;
+    --primary-foreground: 215 28% 5%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 217 26% 16%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 26% 16%;
+    --muted-foreground: 217 13% 60%;
 
-    --accent: 171 100% 41%;
-    --accent-foreground: 210 34% 7%;
+    --accent: 217 26% 16%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
+    --border: 217 26% 16%;
+    --input: 217 26% 16%;
     --ring: 171 100% 41%;
 
-    --radius: 0.75rem;
+    --radius: 1.25rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -65,43 +89,14 @@
     --chart-5: 33 100% 50%;
   }
 
-  .dark {
-    --background: 210 34% 7%;
-    --foreground: 210 40% 98%;
-
-    --card: 210 29% 11%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 210 29% 11%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 171 100% 41%;
-    --primary-foreground: 210 34% 7%;
-
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 171 100% 41%;
-    --accent-foreground: 210 34% 7%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 171 100% 41%;
-  }
-
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 
   /* NEVER REMOVE THIS */
