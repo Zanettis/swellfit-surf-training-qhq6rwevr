@@ -83,7 +83,12 @@ export default function Coach() {
 
   if (screen === 'checkin' && summary && activeSession) {
     return (
-      <CheckIn summary={summary} focusTags={activeSession.focusTags} onDone={handleCheckInDone} />
+      <CheckIn
+        summary={summary}
+        focusTags={activeSession.focusTags}
+        exercises={activeSession.exercises}
+        onDone={handleCheckInDone}
+      />
     )
   }
 

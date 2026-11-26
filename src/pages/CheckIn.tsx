@@ -2,10 +2,12 @@
 // a one-line Coach adjustment note, and the Finish & Save CTA.
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Dumbbell, Timer } from 'lucide-react'
+import { CheckCircle2, Dumbbell, Timer, TrendingUp } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { loadAllRepHistory, type RepLogEntry } from '@/lib/storage'
+import type { PlayerExercise } from '@/data/player-types'
 
 export type Feel = 'too_easy' | 'just_right' | 'brutal'
 export type Joint = 'all_good' | 'shoulder' | 'lower_back'
@@ -18,6 +20,8 @@ export interface CheckInResult {
 interface CheckInProps {
   summary: { elapsedSeconds: number; exerciseCount: number }
   focusTags: string[]
+  /** Today's rep logs resolve to names via this list. */
+  exercises: PlayerExercise[]
   onDone: (result: CheckInResult) => void
 }
 
@@ -58,10 +62,47 @@ function formatClock(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export function CheckIn({ summary, focusTags, onDone }: CheckInProps) {
+/** One row per exercise+set logged today, with the previous entry's delta. */
+interface TodayRow {
+  exerciseName: string
+  setNumber: number // 1-based
+  reps: number
+  delta: number | null
+}
+
+/** Today's logged sets, grouped per exercise+set, with vs-previous deltas. */
+function todayRows(logs: RepLogEntry[], nameOf: (id: string) => string): TodayRow[] {
+  const today = new Date().toISOString().slice(0, 10)
+  const seen = new Set<string>()
+  const rows: TodayRow[] = []
+  for (const log of logs) {
+    if (log.date !== today) continue
+    const key = `${log.exerciseId}-${log.setIndex}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const previous = logs.find(
+      (e) => e.exerciseId === log.exerciseId && e.setIndex === log.setIndex && e.date !== today,
+    )
+    rows.push({
+      exerciseName: nameOf(log.exerciseId),
+      setNumber: log.setIndex + 1,
+      reps: log.reps,
+      delta: previous ? log.reps - previous.reps : null,
+    })
+  }
+  return rows
+}
+
+export function CheckIn({ summary, focusTags, exercises, onDone }: CheckInProps) {
   const [feel, setFeel] = useState<Feel | null>(null)
   const [joint, setJoint] = useState<Joint | null>(null)
   const note = useMemo(() => coachNote(feel, joint), [feel, joint])
+
+  const repRows = useMemo(() => {
+    const logs = loadAllRepHistory()
+    const nameOf = (id: string) => exercises.find((e) => e.id === id)?.name ?? id
+    return todayRows(logs, nameOf)
+  }, [exercises])
 
   const pillClass = (active: boolean) =>
     cn(
@@ -105,6 +146,41 @@ export function CheckIn({ summary, focusTags, onDone }: CheckInProps) {
             </div>
             <span className="text-lg font-bold tabular-nums">{summary.exerciseCount}</span>
           </div>
+          {repRows.length > 0 && (
+            <div className="mt-4 border-t border-[#1E2633] pt-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-[#00D1B2]" aria-hidden="true" />
+                <span className="text-xs font-medium uppercase tracking-wide text-white/50">
+                  Reps logged today
+                </span>
+              </div>
+              <ul className="mt-2 space-y-1.5">
+                {repRows.map((row) => (
+                  <li
+                    key={`${row.exerciseName}-${row.setNumber}`}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate text-white/80">
+                      {row.exerciseName} · Set {row.setNumber}
+                    </span>
+                    <span className="shrink-0 font-bold tabular-nums text-white">
+                      {row.reps} reps
+                      {row.delta !== null && (
+                        <span
+                          className={cn(
+                            'ml-2 font-medium tabular-nums',
+                            row.delta >= 0 ? 'text-[#00D1B2]' : 'text-amber-400',
+                          )}
+                        >
+                          {row.delta >= 0 ? `+${row.delta}` : row.delta} vs last
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {focusTags.length > 0 && (
             <div className="mt-4 border-t border-[#1E2633] pt-4">
               <p className="text-xs font-medium uppercase tracking-wide text-white/50">

@@ -12,6 +12,12 @@
 // 2) The interval must not depend on `phase` or `total`: those changing
 //    re-created the interval mid-block and dropped ticks. It reads them
 //    through refs instead, so ONE interval lives for the whole session.
+//
+// Count-up (0.0.12): rep-based blocks have no countdown, so the engine also
+// tracks the ELAPSED time of the current work block (blockElapsed) and the
+// pause-excluded total training time (elapsedSeconds). Both derive from
+// wall-clock anchors that pause freezes and resume restarts — same zero-drift
+// pattern as the deadline.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -28,6 +34,8 @@ export interface WorkoutEngine {
   total: number // length of the current block in seconds
   running: boolean
   elapsedSeconds: number // wall-clock training time, pause-excluded
+  /** Elapsed seconds inside the CURRENT work block — the rep screen's count-up. */
+  blockElapsed: number
   session: PlayerSession // live copy: swaps applied here
   current: PlayerExercise | undefined
   next: PlayerExercise | undefined // what the rest screen shows as UP NEXT
@@ -38,6 +46,10 @@ export interface WorkoutEngine {
   exerciseCount: number
   completeSet: () => void
   toggleRunning: () => void
+  /** Freeze every running clock (the rep-log sheet pauses the set this way). */
+  pause: () => void
+  /** Unfreeze; countdown blocks re-arm from the frozen remainder. */
+  resume: () => void
   /** End the current set (or rest block) now — exactly as if the timer ran out. */
   goNext: () => void
   /** Restart the current set; from set 1, jump to the previous exercise's set 1. */
@@ -76,6 +88,15 @@ export function useWorkoutEngine(
   const [remaining, setRemaining] = useState(total)
   const [running, setRunning] = useState(true)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [blockElapsed, setBlockElapsed] = useState(0)
+
+  // Elapsed-time anchors for the count-up: when the current block started
+  // (wall clock) and how much of it was already spent before a pause.
+  const blockStartRef = useRef(Date.now())
+  const blockSpentRef = useRef(0)
+  // Training-time anchors (same pattern): total elapsed, pause-excluded.
+  const elapsedStartRef = useRef(Date.now())
+  const elapsedSpentRef = useRef(0)
 
   const deadlineRef = useRef(Date.now() + total * MS_PER_SEC)
   const lastLeftRef = useRef(total)
@@ -94,6 +115,23 @@ export function useWorkoutEngine(
   const arm = useCallback((lengthSeconds: number) => {
     deadlineRef.current = Date.now() + lengthSeconds * MS_PER_SEC
     lastLeftRef.current = lengthSeconds
+    // A newly armed block starts its count-up from zero.
+    blockStartRef.current = Date.now()
+    blockSpentRef.current = 0
+    setBlockElapsed(0)
+  }, [])
+
+  /** Freeze the running clocks into their "spent" anchors (on pause). */
+  const freezeClocks = useCallback(() => {
+    const now = Date.now()
+    blockSpentRef.current += now - blockStartRef.current
+    elapsedSpentRef.current += now - elapsedStartRef.current
+  }, [])
+
+  /** Restart the wall-clock anchors from now (on resume / unpause). */
+  const startClocks = useCallback(() => {
+    blockStartRef.current = Date.now()
+    elapsedStartRef.current = Date.now()
   }, [])
 
   /** End of a work or rest block: rest → next set/exercise; last block → done. */
@@ -109,6 +147,7 @@ export function useWorkoutEngine(
         finishedRef.current = true
         setPhase('done')
         setRunning(false)
+        freezeClocks()
         if (soundRef.current) chimeFinish()
         onFinishRef.current()
         return
@@ -135,7 +174,7 @@ export function useWorkoutEngine(
       arm(len)
       if (soundRef.current) beepRestOver()
     }
-  }, [arm, exerciseIndex, exercises, setNumber])
+  }, [arm, exerciseIndex, exercises, freezeClocks, setNumber])
 
   // The single tick for the WHOLE session: 100ms, derives remaining from the
   // deadline (zero drift), fires 3-2-1 beeps and advances exactly once per
@@ -168,19 +207,41 @@ export function useWorkoutEngine(
     return () => window.clearInterval(id)
   }, [advance, running])
 
+  // Count-up tick: derives ELAPSED time for the current block (rep screen) and
+  // the session clock from the wall-clock anchors. It also depends only on
+  // [running]; phase changes don't touch it.
+  useEffect(() => {
+    if (!running) return
+    const id = window.setInterval(() => {
+      setBlockElapsed(
+        Math.floor((blockSpentRef.current + (Date.now() - blockStartRef.current)) / MS_PER_SEC),
+      )
+      setElapsedSeconds(
+        Math.floor((elapsedSpentRef.current + (Date.now() - elapsedStartRef.current)) / MS_PER_SEC),
+      )
+    }, 100)
+    return () => window.clearInterval(id)
+  }, [running])
+
   const completeSet = useCallback(() => {
     if (phaseRef.current === 'work') advance()
   }, [advance])
 
   const pause = useCallback(() => {
-    if (phase !== 'done') setRunning(false)
-  }, [phase])
+    if (phase !== 'done') {
+      freezeClocks()
+      setRunning(false)
+    }
+  }, [freezeClocks, phase])
 
   const resume = useCallback(() => {
     if (phase === 'done') return
-    arm(remaining)
+    startClocks()
+    // Countdown blocks re-arm from the frozen remainder; rep blocks (whose
+    // count-up must CONTINUE, not restart) only need the clocks restarted.
+    if (totalRef.current > 1) arm(remaining)
     setRunning(true)
-  }, [arm, phase, remaining])
+  }, [arm, phase, remaining, startClocks])
 
   const toggleRunning = useCallback(() => {
     if (running) pause()
@@ -273,6 +334,7 @@ export function useWorkoutEngine(
     total,
     running,
     elapsedSeconds: Math.floor(elapsedSeconds),
+    blockElapsed: Math.max(0, Math.floor(blockElapsed)),
     session,
     current,
     next,
@@ -281,6 +343,8 @@ export function useWorkoutEngine(
     exerciseCount: exercises.length,
     completeSet,
     toggleRunning,
+    pause,
+    resume,
     goNext,
     goPrev,
     addRest,

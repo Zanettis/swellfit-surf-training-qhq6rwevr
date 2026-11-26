@@ -1,11 +1,14 @@
-// localStorage persistence for SwellFit: settings, streak, completed-today state.
-// No database backend exists — this is the only persistence layer.
+// localStorage persistence for SwellFit: settings, streak, completed-today state
+// and per-exercise rep history. No database backend exists — this is the only
+// persistence layer.
 
 import { DEFAULT_SETTINGS } from '@/data/sessions'
 import type { CoachSettings } from '@/data/player-types'
 
 const KEY_SETTINGS = 'swellfit:settings'
 const KEY_STREAK = 'swellfit:streak'
+const KEY_REPS = 'swellfit:reps'
+const MAX_REP_LOGS = 400
 
 const todayKey = (): string => new Date().toISOString().slice(0, 10)
 
@@ -99,4 +102,63 @@ function persist(s: StreakState): void {
 export function currentStreak(): StreakState {
   const s = loadStreak()
   return sameWeek(s.lastCompleted) ? s : { ...s, weekly: 0 }
+}
+
+// ── Rep history ──────────────────────────────────────────────────────────────
+// One entry per logged set, keyed by exercise id + set index so "vs last time"
+// comparisons work across sessions. Newest first.
+
+export interface RepLogEntry {
+  /** ISO date the set was performed (YYYY-MM-DD). */
+  date: string
+  exerciseId: string
+  /** 0-based set index inside the exercise. */
+  setIndex: number
+  reps: number
+  /** Elapsed seconds of that set, from the count-up timer when available. */
+  seconds?: number
+}
+
+function readRepLogs(): RepLogEntry[] {
+  try {
+    const raw = localStorage.getItem(KEY_REPS)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? (parsed as RepLogEntry[]) : []
+  } catch {
+    return []
+  }
+}
+
+/** History for one exercise + set index, newest first. */
+export function loadRepHistory(exerciseId: string, setIndex: number): RepLogEntry[] {
+  return readRepLogs().filter((e) => e.exerciseId === exerciseId && e.setIndex === setIndex)
+}
+
+/** Every logged set, newest first — the progression summary's data source. */
+export function loadAllRepHistory(): RepLogEntry[] {
+  return readRepLogs()
+}
+
+/**
+ * Save a logged set. Returns the most recent PREVIOUS entry for the same
+ * exercise + set (null when this is the first time), so the player can show
+ * "+2 vs last time" right after logging.
+ */
+export function recordRepLog(entry: {
+  exerciseId: string
+  setIndex: number
+  reps: number
+  seconds?: number
+}): RepLogEntry | null {
+  const logs = readRepLogs()
+  const previous =
+    logs.find((e) => e.exerciseId === entry.exerciseId && e.setIndex === entry.setIndex) ?? null
+  const next: RepLogEntry[] = [{ date: todayKey(), ...entry }, ...logs].slice(0, MAX_REP_LOGS)
+  try {
+    localStorage.setItem(KEY_REPS, JSON.stringify(next))
+  } catch {
+    /* storage unavailable — history just doesn't persist */
+  }
+  return previous
 }

@@ -18,7 +18,10 @@ import { RefreshCw } from 'lucide-react'
 import { SwapSheet } from '@/components/player/SwapSheet'
 import { PlayerStage } from '@/components/player/PlayerStage'
 import { RestOverlay } from '@/components/player/RestOverlay'
+import { RepLogSheet } from '@/components/player/RepLogSheet'
 import { useWorkoutEngine } from '@/hooks/use-workout-engine'
+import { useRepLogging } from '@/hooks/use-rep-logging'
+import { loadRepHistory, type RepLogEntry } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import type { CoachSession } from '@/data/player-types'
 
@@ -66,6 +69,52 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
   const engineRef = useRef(engine)
   engineRef.current = engine
 
+  // Alias AFTER the early-return guard below, for the stage JSX.
+  const current = engine.current
+
+  // Rep-set logging: pause the engine while the sheet is up, persist the
+  // confirmed reps, resume the count-up where it was on cancel.
+  const repLog = useRepLogging({
+    pause: engine.pause,
+    resume: engine.resume,
+  })
+
+  // Last logged value for THIS exercise + set, for the sheet's comparison hint.
+  // Memoized: the count-up re-renders ~10x/s and this reads localStorage.
+  const lastTime: RepLogEntry | null = useMemo(
+    () =>
+      current && current.type === 'reps' && !repLog.sheetOpen
+        ? (loadRepHistory(current.id, engine.setNumber - 1)[0] ?? null)
+        : null,
+    [current, engine.setNumber, repLog.sheetOpen],
+  )
+
+  // "Set Complete": rep sets open the log sheet first; timed sets advance.
+  const handleSetComplete = useCallback(() => {
+    const eng = engineRef.current
+    const ex = eng.current
+    if (ex && ex.type === 'reps') {
+      repLog.openRepLog(ex, eng.setNumber - 1, eng.blockElapsed)
+      return
+    }
+    eng.completeSet()
+  }, [engineRef, repLog])
+
+  // Confirmed reps END the set (engine.advance → rest), so the sheet never
+  // covers a block that already finished; the feedback pill shows on rest.
+  const handleRepLogConfirm = useCallback(
+    (reps: number) => {
+      const eng = engineRef.current
+      const ex = eng.current
+      const wasLastBlock =
+        !ex || (eng.setNumber >= ex.sets && eng.exerciseIndex >= eng.exerciseCount - 1)
+      repLog.confirmReps(reps)
+      if (!wasLastBlock) eng.completeSet()
+      else repLog.dismissFeedback()
+    },
+    [engineRef, repLog],
+  )
+
   const handleExit = useCallback(() => {
     setConfirmOpen(false)
     onExit()
@@ -102,7 +151,6 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
   const totalBlocks = useMemo(() => blocks.reduce((a, b) => a + b, 0), [blocks])
 
   const resting = engine.phase === 'rest'
-  const current = engine.current
   if (!session || !current) return null
 
   return (
@@ -205,6 +253,22 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
               <PlayerStage exercise={current} phase={engine.phase} />
             </div>
 
+            {/* Logged feedback pill: lives OUTSIDE the work/rest branch so it
+               stays visible on the rest screen right after Save Reps. */}
+            {repLog.feedback && (
+              <p
+                role="status"
+                className="mt-4 shrink-0 rounded-full border border-[#00D1B2]/40 bg-[#00D1B2]/10 px-4 py-2 text-center text-sm font-medium tabular-nums text-[#00D1B2]"
+              >
+                {repLog.feedback.exerciseName} · Set {repLog.feedback.setNumber}:{' '}
+                {repLog.feedback.reps} reps
+                {repLog.feedback.delta === null
+                  ? ''
+                  : repLog.feedback.delta >= 0
+                    ? ` (+${repLog.feedback.delta} vs last time)`
+                    : ` (${repLog.feedback.delta} vs last time)`}
+              </p>
+            )}
             <div className="mt-5 flex min-h-0 flex-col items-center">
               {current.type === 'time' ? (
                 <>
@@ -233,6 +297,18 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
                 </>
               ) : (
                 <>
+                  {/* Count-up clock: runs while the set is live so the timer
+                      guides/challenges the user to hit the target inside it.
+                      Pauses/resumes with the engine's Play/Pause control. */}
+                  <p
+                    aria-live="off"
+                    className="text-3xl font-semibold tabular-nums tracking-tight text-[#00D1B2] sm:text-4xl"
+                  >
+                    {formatClock(engine.blockElapsed)}
+                    <span className="ml-2 align-middle text-xs font-medium uppercase tracking-widest text-white/40">
+                      elapsed
+                    </span>
+                  </p>
                   <p
                     aria-live="off"
                     className="text-6xl font-bold tabular-nums tracking-tight sm:text-7xl"
@@ -251,10 +327,15 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
                     type="button"
                     size="lg"
                     className="mt-5 h-12 w-full max-w-xs rounded-full bg-[#00D1B2] text-base font-semibold text-[#090C10] hover:bg-[#00D1B2]/90"
-                    onClick={engine.completeSet}
+                    onClick={handleSetComplete}
                   >
                     Set Complete
                   </Button>
+                  {lastTime && (
+                    <p className="mt-3 text-xs font-medium uppercase tracking-wide text-white/40 tabular-nums">
+                      Last time: {lastTime.reps} reps
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -341,6 +422,18 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Rep log sheet ──────────────────────────────────────────────── */}
+      <RepLogSheet
+        exerciseName={current.name}
+        setNumber={engine.setNumber}
+        targetReps={current.reps ?? 0}
+        lastTime={lastTime}
+        open={repLog.sheetOpen}
+        initialReps={current.reps ?? 0}
+        onConfirm={handleRepLogConfirm}
+        onCancel={repLog.cancelRepLog}
+      />
 
       {/* ── Swap sheet ───────────────────────────────────────────────── */}
       <SwapSheet
