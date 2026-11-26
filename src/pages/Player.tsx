@@ -4,7 +4,6 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pause, Play, SkipForward, Volume2, VolumeX, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import {
