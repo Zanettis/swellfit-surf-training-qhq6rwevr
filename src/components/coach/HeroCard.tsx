@@ -1,14 +1,15 @@
-import { Clock, Dumbbell, SlidersHorizontal } from 'lucide-react'
+import { CheckCircle2, Clock, Dumbbell, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CoachSession } from '@/data/sessions'
 
 interface HeroCardProps {
   session: CoachSession
+  completedToday?: boolean
   onStart: () => void
   onAdapt: () => void
 }
 
-export function HeroCard({ session, onStart, onAdapt }: HeroCardProps) {
+export function HeroCard({ session, completedToday, onStart, onAdapt }: HeroCardProps) {
   return (
     <section aria-labelledby="hero-session-title" className="overflow-hidden rounded-3xl bg-card">
       {/* Drawn-in-code ocean wave header: flat slate strokes, no gradient */}
@@ -45,6 +46,15 @@ export function HeroCard({ session, onStart, onAdapt }: HeroCardProps) {
           <h2 id="hero-session-title" className="text-2xl font-bold leading-tight tracking-tight">
             {session.title}
           </h2>
+          {completedToday && (
+            <p
+              className="mt-1 flex items-center gap-1.5 text-sm font-medium text-primary"
+              role="status"
+            >
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              Completed Today ✓
+            </p>
+          )}
         </div>
 
         <dl className="flex flex-col gap-2 text-sm text-muted-foreground">

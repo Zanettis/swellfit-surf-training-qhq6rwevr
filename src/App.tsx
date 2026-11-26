@@ -1,9 +1,10 @@
-/* Main App Component - Handles routing (using react-router-dom) and global providers - use this file to add all routes */
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Coach from './pages/Coach'
+import Player from './pages/Player'
+import CheckIn from './pages/CheckIn'
 import Explore from './pages/Explore'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
@@ -22,8 +23,10 @@ const App = () => (
           <Route path="/" element={<Coach />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/profile" element={<Profile />} />
-          {/* ADD ALL CUSTOM ROUTES MUST BE ADDED HERE */}
         </Route>
+        {/* Full-screen player lives outside Layout so the tab bar is hidden */}
+        <Route path="/workout" element={<Player />} />
+        <Route path="/checkin" element={<CheckIn />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </TooltipProvider>
