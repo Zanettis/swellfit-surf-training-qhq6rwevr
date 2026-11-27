@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from '@/hooks/use-toast'
 import { cloneSession } from '@/data/sessions'
-import type { CoachSession } from '@/data/player-types'
+import type { CoachSession, SurfSubMode } from '@/data/player-types'
 import { buildWeeklySession, pickTodaySlot, pickSurfSubMode } from '@/data/weekly-plan'
 import type { SlotId } from '@/data/slot-id'
 import { CoachHeader } from '@/components/coach/CoachHeader'
 import { DaySwitch } from '@/components/coach/DaySwitch'
+import { SurfRoutineSwitch } from '@/components/coach/SurfRoutineSwitch'
+import { WeekSlotBar } from '@/components/coach/WeekSlotBar'
 import { HeroCard } from '@/components/coach/HeroCard'
+import { CoachNote } from '@/components/coach/CoachNote'
 import { SessionBreakdown } from '@/components/coach/SessionBreakdown'
 import { AdaptSheet } from '@/components/coach/AdaptSheet'
 import { Player } from '@/pages/Player'
@@ -24,6 +27,11 @@ import {
   type WorkoutHistoryEntry,
 } from '@/lib/storage'
 import { primeAudio } from '@/lib/sound'
+
+/** Journey block length — Surf Trip Prep runs on an 8-week cycle, 4x/week. */
+const JOURNEY_WEEKS = 8
+const JOURNEY_SESSIONS_PER_WEEK = 4
+const daysLeftOf = (week: number) => Math.max(0, (JOURNEY_WEEKS - week) * JOURNEY_SESSIONS_PER_WEEK)
 
 type Screen = 'coach' | 'player' | 'checkin'
 
@@ -45,17 +53,15 @@ export default function Coach() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [streak, setStreak] = useState(() => currentStreak())
   const [coachState, setCoachState] = useState(() => loadCoachState())
+  // Surf Day routine: Pre-Surf before noon, Post-Surf after (user can switch).
+  const [surfMode, setSurfMode] = useState<SurfSubMode>(() => pickSurfSubMode())
 
-  // Today's slot: the least-hit archetype, or a pre/post-surf routine. The
+  // Today's slot: the least-hit archetype, or the picked surf routine. The
   // session rebuilds when the coach state advances (check-in recorded).
   const slotId: SlotId = useMemo(
     () =>
-      mode === 'surf'
-        ? pickSurfSubMode() === 'pre'
-          ? 'SURF_PRE'
-          : 'SURF_POST'
-        : pickTodaySlot(coachState),
-    [mode, coachState],
+      mode === 'surf' ? (surfMode === 'pre' ? 'SURF_PRE' : 'SURF_POST') : pickTodaySlot(coachState),
+    [mode, surfMode, coachState],
   )
 
   // Effective settings = the adapt-sheet's manual picks + the coach state's
@@ -112,7 +118,7 @@ export default function Coach() {
       recordCheckIn()
       setStreak(currentStreak())
 
-      const slot = activeSlotId ?? slotId
+      const slot: SlotId = activeSlotId ?? slotId
       const slotIdForHistory: WorkoutHistoryEntry['slotId'] =
         slot === 'SURF_PRE' ? 'pre' : slot === 'SURF_POST' ? 'post' : slot
 
@@ -162,11 +168,13 @@ export default function Coach() {
   }
 
   if (screen === 'checkin' && summary && activeSession) {
+    const finishedSlot: SlotId = activeSlotId ?? slotId
     return (
       <CheckIn
         summary={summary}
         focusTags={activeSession.focusTags}
         exercises={activeSession.exercises}
+        isSurfDay={finishedSlot === 'SURF_PRE' || finishedSlot === 'SURF_POST'}
         onDone={handleCheckInDone}
       />
     )
@@ -174,9 +182,31 @@ export default function Coach() {
 
   return (
     <div className="flex flex-1 flex-col gap-8 px-5 pb-8 pt-6">
-      <CoachHeader weekly={streak.weekly} weeklyGoal={streak.weeklyGoal} />
+      <CoachHeader
+        weekly={streak.weekly}
+        weeklyGoal={streak.weeklyGoal}
+        week={coachState.currentWeekNumber}
+        daysLeft={daysLeftOf(coachState.currentWeekNumber)}
+        coachLevel={coachState.coachLevel}
+      />
 
-      <DaySwitch value={mode} onChange={setMode} />
+      <DaySwitch
+        value={mode}
+        onChange={(next) => {
+          setMode(next)
+          if (next === 'surf') setSurfMode(pickSurfSubMode())
+        }}
+      />
+
+      {mode === 'surf' && <SurfRoutineSwitch value={surfMode} onChange={setSurfMode} />}
+
+      {mode === 'weekly' && (
+        <WeekSlotBar
+          counts={coachState.weeklyFocusCounts}
+          todaySlot={pickTodaySlot(coachState)}
+          completedToday={completedToday}
+        />
+      )}
 
       <div key={contentKey} className="animate-coach-rise flex flex-col gap-8">
         <HeroCard
@@ -184,7 +214,9 @@ export default function Coach() {
           completedToday={completedToday}
           onStart={() => startPlayer(0)}
           onAdapt={() => setAdaptOpen(true)}
-        />
+        >
+          <CoachNote state={coachState} completedToday={completedToday} />
+        </HeroCard>
         <SessionBreakdown exercises={session.exercises} onSelect={(index) => startPlayer(index)} />
       </div>
 

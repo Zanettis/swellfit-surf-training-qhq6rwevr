@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { CheckCircle2, Clock, Dumbbell, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CoachSession } from '@/data/sessions'
@@ -5,11 +6,13 @@ import type { CoachSession } from '@/data/sessions'
 interface HeroCardProps {
   session: CoachSession
   completedToday?: boolean
+  /** Optional Coach note rendered between the focus tags and the CTAs. */
+  children?: ReactNode
   onStart: () => void
   onAdapt: () => void
 }
 
-export function HeroCard({ session, completedToday, onStart, onAdapt }: HeroCardProps) {
+export function HeroCard({ session, completedToday, children, onStart, onAdapt }: HeroCardProps) {
   return (
     <section aria-labelledby="hero-session-title" className="overflow-hidden rounded-3xl bg-card">
       {/* Drawn-in-code ocean wave header: flat slate strokes, no gradient */}
@@ -83,6 +86,7 @@ export function HeroCard({ session, completedToday, onStart, onAdapt }: HeroCard
           ))}
         </ul>
 
+        {children}
         <div className="flex flex-col gap-3 pt-1">
           <Button
             size="lg"

@@ -33,6 +33,7 @@ const EQUIPMENT_OPTIONS: { value: EquipmentOption; label: string }[] = [
 const JOINT_OPTIONS: { value: JointOption; label: string }[] = [
   { value: 'shoulders', label: 'Shoulders' },
   { value: 'lowerBack', label: 'Lower Back' },
+  { value: 'knees', label: 'Knees' },
 ]
 
 export function AdaptSheet({ open, onOpenChange, settings, onUpdate }: AdaptSheetProps) {

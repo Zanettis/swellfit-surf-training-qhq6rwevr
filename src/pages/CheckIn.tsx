@@ -10,11 +10,14 @@ import { loadAllRepHistory, type RepLogEntry } from '@/lib/storage'
 import type { PlayerExercise } from '@/data/player-types'
 
 export type Feel = 'too_easy' | 'just_right' | 'brutal'
-export type Joint = 'all_good' | 'shoulder' | 'lower_back'
+export type Joint = 'all_good' | 'shoulder' | 'lower_back' | 'knees'
 
 export interface CheckInResult {
   feel: Feel | null
+  /** Multi-joint check: every tight joint (shoulder, lower back, knees). */
   joint: Joint | null
+  /** All flagged joints at once — the Coach state's single adaptation path. */
+  joints: Joint[]
 }
 
 interface CheckInProps {
@@ -22,6 +25,8 @@ interface CheckInProps {
   focusTags: string[]
   /** Today's rep logs resolve to names via this list. */
   exercises: PlayerExercise[]
+  /** True when the finished session was a Pre/Post-Surf routine. */
+  isSurfDay?: boolean
   onDone: (result: CheckInResult) => void
 }
 
@@ -31,28 +36,45 @@ const FEEL_PILLS: { value: Feel; label: string }[] = [
   { value: 'brutal', label: 'Brutal' },
 ]
 
-const JOINT_PILLS: { value: Joint; label: string }[] = [
-  { value: 'all_good', label: 'All Good' },
-  { value: 'shoulder', label: 'Shoulder Tightness' },
-  { value: 'lower_back', label: 'Lower Back Tightness' },
+const JOINT_PILLS: { value: Exclude<Joint, 'all_good'>; label: string }[] = [
+  { value: 'shoulder', label: 'Shoulder' },
+  { value: 'lower_back', label: 'Lower Back' },
+  { value: 'knees', label: 'Knees' },
 ]
 
-function coachNote(feel: Feel | null, joint: Joint | null): string {
-  if (!feel && !joint) return ''
+function coachNote(feel: Feel | null, joints: Joint[], isSurfDay: boolean): string {
+  const hasFlags = joints.some((j) => j !== 'all_good')
+  if (!feel && joints.length === 0)
+    return isSurfDay
+      ? 'Paddled out and recovered well — Coach keeps both surf routines exactly as they are.'
+      : ''
   const feelPart =
     feel === 'too_easy'
       ? 'Got it — Coach will add load and trim rest in your next session.'
       : feel === 'brutal'
         ? 'Got it — Coach will dial the volume back and extend your rest windows.'
         : 'Locked in — Coach keeps this dose and builds on it next time.'
-  const jointPart =
-    joint === 'shoulder'
-      ? ' Shoulders were tight: extra rotator-cuff prehab and lighter pressing are queued up.'
-      : joint === 'lower_back'
-        ? ' Lower back was tight: expect more hip-hinge mobility and less loaded flexion.'
-        : joint === 'all_good'
-          ? ' Joints feel good — no changes needed there.'
-          : ''
+  let jointPart = ''
+  if (joints.includes('all_good')) {
+    jointPart += ' Joints feel good — no changes needed there.'
+  }
+  if (joints.includes('shoulder')) {
+    jointPart += isSurfDay
+      ? ' Shoulder tight after the paddle: extra rotator-cuff work joins the next session, and paddling volume gets a lighter day.'
+      : ' Shoulders were tight: extra rotator-cuff prehab and lighter pressing are queued up.'
+  }
+  if (joints.includes('lower_back')) {
+    jointPart += isSurfDay
+      ? ' Lower back tightened on the pop-up: hip-hinge mobility is queued before your next paddle out.'
+      : ' Lower back was tight: expect more hip-hinge mobility and less loaded flexion.'
+  }
+  if (joints.includes('knees')) {
+    jointPart += isSurfDay
+      ? ' Knees complained in the pop-up: ankle and hip mobility joins the warmup, and pop-up drills get lower-impact options.'
+      : ' Knees were tight: more ankle/hip mobility and lower-impact leg work are queued up.'
+  }
+  if (hasFlags && isSurfDay)
+    jointPart += ' Both surf routines adapt too — they share the same Coach state.'
   return feelPart + jointPart
 }
 
@@ -93,10 +115,19 @@ function todayRows(logs: RepLogEntry[], nameOf: (id: string) => string): TodayRo
   return rows
 }
 
-export function CheckIn({ summary, focusTags, exercises, onDone }: CheckInProps) {
+export function CheckIn({
+  summary,
+  focusTags,
+  exercises,
+  isSurfDay = false,
+  onDone,
+}: CheckInProps) {
   const [feel, setFeel] = useState<Feel | null>(null)
   const [joint, setJoint] = useState<Joint | null>(null)
-  const note = useMemo(() => coachNote(feel, joint), [feel, joint])
+  const note = useMemo(
+    () => coachNote(feel, joint ? [joint] : [], isSurfDay),
+    [feel, joint, isSurfDay],
+  )
 
   const repRows = useMemo(() => {
     const logs = loadAllRepHistory()
@@ -209,10 +240,10 @@ export function CheckIn({ summary, focusTags, exercises, onDone }: CheckInProps)
           </div>
         </fieldset>
 
-        {/* Step 2 — joints */}
+        {/* Step 2 — joints, multi-select: any tight joint can be flagged */}
         <fieldset className="mt-6">
           <legend className="text-sm font-semibold text-white">
-            2. Joint check <span className="font-normal text-white/40">(optional)</span>
+            2. Anything tight? <span className="font-normal text-white/40">(optional)</span>
           </legend>
           <div className="mt-3 flex flex-wrap gap-2">
             {JOINT_PILLS.map((p) => (
@@ -220,12 +251,20 @@ export function CheckIn({ summary, focusTags, exercises, onDone }: CheckInProps)
                 key={p.value}
                 type="button"
                 aria-pressed={joint === p.value}
-                onClick={() => setJoint(p.value)}
+                onClick={() => setJoint(joint === p.value ? null : p.value)}
                 className={pillClass(joint === p.value)}
               >
                 {p.label}
               </button>
             ))}
+            <button
+              type="button"
+              aria-pressed={joint === 'all_good'}
+              onClick={() => setJoint(joint === 'all_good' ? null : 'all_good')}
+              className={pillClass(joint === 'all_good')}
+            >
+              All Good
+            </button>
           </div>
         </fieldset>
 
@@ -244,7 +283,7 @@ export function CheckIn({ summary, focusTags, exercises, onDone }: CheckInProps)
             type="button"
             size="lg"
             className="h-14 w-full rounded-full bg-[#00D1B2] text-base font-semibold text-[#090C10] hover:bg-[#00D1B2]/90"
-            onClick={() => onDone({ feel, joint })}
+            onClick={() => onDone({ feel, joint, joints: joint ? [joint] : [] })}
           >
             Finish & Save Session
           </Button>

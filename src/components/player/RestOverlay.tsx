@@ -11,15 +11,32 @@ interface RestOverlayProps {
   remaining: number
   total?: number
   next?: PlayerExercise
+  /** The next block after this rest is the Main Conditioning block. */
+  entersMain?: boolean
   onAddRest: () => void
   onSkipRest: () => void
   onSwap: () => void
 }
 
-export function RestOverlay({ remaining, next, onAddRest, onSkipRest, onSwap }: RestOverlayProps) {
+export function RestOverlay({
+  remaining,
+  next,
+  entersMain,
+  onAddRest,
+  onSkipRest,
+  onSwap,
+}: RestOverlayProps) {
   return (
     <div className="flex w-full max-w-md flex-col items-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
       <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/40">Rest</p>
+      {entersMain && (
+        <p
+          role="status"
+          className="mt-3 rounded-full border border-[#00D1B2]/40 bg-[#00D1B2]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#00D1B2]"
+        >
+          Entering Main Block
+        </p>
+      )}
       <p className="mt-3 text-8xl font-bold tabular-nums tracking-tight">
         {String(Math.floor(remaining / 60)).padStart(2, '0')}:
         {String(remaining % 60).padStart(2, '0')}

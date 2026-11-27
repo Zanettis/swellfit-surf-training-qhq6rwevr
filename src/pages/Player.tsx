@@ -23,7 +23,8 @@ import { useWorkoutEngine } from '@/hooks/use-workout-engine'
 import { useRepLogging } from '@/hooks/use-rep-logging'
 import { loadRepHistory, type RepLogEntry } from '@/lib/storage'
 import { cn } from '@/lib/utils'
-import type { CoachSession } from '@/data/player-types'
+import type { CoachSession, PhaseName } from '@/data/player-types'
+import { PHASE_LABELS } from '@/data/player-types'
 
 interface PlayerProps {
   session: CoachSession | null
@@ -147,6 +148,28 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
     [engine.session.exercises],
   )
 
+  // ── Phase indicator: Warmup → Main → Decompression ─────────────────────────
+  const phases: PhaseName[] = useMemo(() => {
+    const seen: PhaseName[] = []
+    for (const e of engine.session.exercises) {
+      const p = e.phase ?? 'main'
+      if (!seen.includes(p)) seen.push(p)
+    }
+    return seen
+  }, [engine.session.exercises])
+
+  const currentPhase: PhaseName | null = phases.length > 1 ? (current?.phase ?? 'main') : null
+
+  /** Is the exercise AFTER the one now resting the first of the Main block? */
+  const restEntersMain = useMemo(() => {
+    if (engine.phase !== 'rest') return false
+    const nextIdx = engine.exerciseIndex + 1
+    if (nextIdx >= engine.session.exercises.length) return false
+    const before = engine.session.exercises[engine.exerciseIndex]
+    const after = engine.session.exercises[nextIdx]
+    return (before.phase ?? 'main') !== 'main' && after.phase === 'main'
+  }, [engine.phase, engine.exerciseIndex, engine.session.exercises])
+
   const currentBlockIndex = useMemo(() => {
     let i = 0
     for (let k = 0; k < engine.exerciseIndex; k++) i += blocks[k]
@@ -202,10 +225,31 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
         >
           <X className="h-5 w-5" aria-hidden="true" />
         </Button>
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/50 tabular-nums">
-          Exercise {engine.exerciseIndex + 1} of {engine.exerciseCount} · Set {engine.setNumber}/
-          {current.sets}
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          {currentPhase && (
+            <p
+              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#00D1B2]"
+              aria-label={`Current phase: ${PHASE_LABELS[currentPhase]}`}
+            >
+              {phases.map((p, i) => (
+                <span key={p} className="flex items-center gap-1.5">
+                  {i > 0 && (
+                    <span aria-hidden="true" className="text-white/25">
+                      →
+                    </span>
+                  )}
+                  <span className={cn(p === currentPhase ? 'text-[#00D1B2]' : 'text-white/30')}>
+                    {p === 'warmup' ? 'Warmup' : p === 'main' ? 'Main' : 'Decompression'}
+                  </span>
+                </span>
+              ))}
+            </p>
+          )}
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/50 tabular-nums">
+            Exercise {engine.exerciseIndex + 1} of {engine.exerciseCount} · Set {engine.setNumber}/
+            {current.sets}
+          </p>
+        </div>
         <div className="flex items-center gap-1">
           <Button
             type="button"
@@ -241,6 +285,7 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
           <RestOverlay
             remaining={engine.remaining}
             next={engine.next}
+            entersMain={restEntersMain}
             onAddRest={() => engine.addRest(15)}
             onSkipRest={engine.skipRest}
             onSwap={() => {
