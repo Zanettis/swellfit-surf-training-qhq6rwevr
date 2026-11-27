@@ -381,9 +381,12 @@ export async function loadWorkoutHistory(limit = 50): Promise<WorkoutHistoryEntr
  * volume, feel and joint), mirrored to localStorage when the write fails.
  * Advances the week number (never a Monday reset) and the weekly slot counts
  * — S1..S4 only, surf routines never consume a weekly slot. Called at
- * check-in time, when feel/joint are known and land in the history row.
+ * check-in time: feel/joint flow through applyCheckInToCoachState, the single
+ * adaptation path, so the next session is modulated exactly once.
+ * Resolves true when the Supabase row landed, false when the offline mirror
+ * was used instead (so the caller can be honest about what was saved).
  */
-export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<void> {
+export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<boolean> {
   const state = loadCoachState()
 
   // Advance the week number: one per completed session — never a Monday reset.
@@ -402,12 +405,9 @@ export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<
     state.weeklyFocusCounts[entry.slotId] = (state.weeklyFocusCounts[entry.slotId] ?? 0) + 1
   }
 
-  // Feel/joint land in the state when the check-in produced them.
-  if (entry.feel) applyFeelToState(state, entry.feel)
-  if (entry.joint) applyJointToState(state, entry.joint)
-
-  state.lastUpdated = todayKey()
-  saveCoachState(state)
+  // Feel/joint flow through applyCheckInToCoachState — the single adaptation
+  // path the plan defines, so level/joint-care are modulated exactly once.
+  applyCheckInToCoachState(state, entry.feel ?? null, entry.joint ?? null)
 
   // Write-through to Supabase; keep an offline mirror when the write fails.
   const ok = await insertHistoryRow(entry)
@@ -427,6 +427,7 @@ export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<
       /* nothing more to do — the workout just isn't mirrored offline */
     }
   }
+  return ok
 }
 
 function applyFeelToState(state: CoachState, feel: FeelOption): void {

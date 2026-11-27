@@ -12,7 +12,9 @@ import { AdaptSheet } from '@/components/coach/AdaptSheet'
 import { Player } from '@/pages/Player'
 import { CheckIn, type CheckInResult } from '@/pages/CheckIn'
 import {
+  coachJointSettings,
   currentStreak,
+  loadAllRepHistory,
   loadCoachState,
   loadSettings,
   recordCheckIn,
@@ -56,9 +58,17 @@ export default function Coach() {
     [mode, coachState],
   )
 
+  // Effective settings = the adapt-sheet's manual picks + the coach state's
+  // persistent joint care (set by the last check-in), so a flagged shoulder
+  // is protected in every following session until it clears.
+  const effectiveSettings = useMemo(
+    () => coachJointSettings(coachState, settings),
+    [coachState, settings],
+  )
+
   const session = useMemo(
-    () => buildWeeklySession({ slotId, settings, state: coachState }),
-    [slotId, settings, coachState],
+    () => buildWeeklySession({ slotId, settings: effectiveSettings, state: coachState }),
+    [slotId, effectiveSettings, coachState],
   )
 
   // Re-keys the animated block whenever the session content changes, so the update is visible.
@@ -87,6 +97,15 @@ export default function Coach() {
     [activeSlotId, slotId],
   )
 
+  // Total reps logged in TODAY's Main-Conditioning sets — the history row's
+  // volume (0 when nothing was logged, e.g. a decompression-only surf routine).
+  const todaysVolume = useCallback((): number => {
+    const today = new Date().toISOString().slice(0, 10)
+    return loadAllRepHistory()
+      .filter((log) => log.date === today)
+      .reduce((sum, log) => sum + log.reps, 0)
+  }, [])
+
   const handleCheckInDone = useCallback(
     (result: CheckInResult) => {
       recordCompletion()
@@ -96,22 +115,39 @@ export default function Coach() {
       const slot = activeSlotId ?? slotId
       const slotIdForHistory: WorkoutHistoryEntry['slotId'] =
         slot === 'SURF_PRE' ? 'pre' : slot === 'SURF_POST' ? 'post' : slot
-      void recordWorkoutHistory({
+
+      // The state advance (week, slot counts, feel/joint adaptation) is saved
+      // synchronously before the network call, so the coach screen can reload
+      // it right away — the Supabase write finishes in the background.
+      recordWorkoutHistory({
         date: new Date().toISOString().slice(0, 10),
         slotId: slotIdForHistory,
         durationSeconds: summary?.elapsedSeconds ?? 0,
-        volume: 0,
+        volume: todaysVolume(),
         feel: result.feel,
         joint: result.joint,
-      }).then(() => {
-        setCoachState(loadCoachState()) // reload so the UI reflects level/week/joint care
       })
+        .then((persisted) => {
+          if (!persisted) {
+            toast({
+              title: 'Saved offline',
+              description: "We couldn't reach the cloud — your session is stored on this device.",
+            })
+          }
+          setCoachState(loadCoachState()) // reload so the UI reflects level/week/joint care
+        })
+        .catch(() => {
+          toast({
+            title: 'Save failed',
+            description: 'Something went wrong saving this session — try again next time.',
+          })
+        })
 
       setScreen('coach')
       setActiveSession(null)
       setSummary(null)
     },
-    [activeSlotId, slotId, summary],
+    [activeSlotId, slotId, summary, todaysVolume],
   )
 
   if (screen === 'player' && activeSession) {
