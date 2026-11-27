@@ -390,10 +390,16 @@ export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<
   state.currentWeekNumber += 1
   state.lastCompleted = entry.date
 
-  // Only S1..S4 consume weekly slots.
-  if (entry.slotId !== 'SURF_PRE' && entry.slotId !== 'SURF_POST') {
-    const key = entry.slotId as DayId
-    state.weeklyFocusCounts[key] = (state.weeklyFocusCounts[key] ?? 0) + 1
+  // Only S1..S4 consume weekly slots — SurfSubMode is 'pre' | 'post', so the
+  // membership guard below is the correct check (the old comparison against
+  // 'SURF_PRE'/'SURF_POST' could never be true and TS2367 flagged it).
+  if (
+    entry.slotId === 'S1' ||
+    entry.slotId === 'S2' ||
+    entry.slotId === 'S3' ||
+    entry.slotId === 'S4'
+  ) {
+    state.weeklyFocusCounts[entry.slotId] = (state.weeklyFocusCounts[entry.slotId] ?? 0) + 1
   }
 
   // Feel/joint land in the state when the check-in produced them.

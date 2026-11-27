@@ -24,7 +24,14 @@ export type {
   JointOption,
   CoachSettings,
   PhaseName,
+  DayId,
+  SurfSubMode,
 } from './player-types'
+
+/** Every catalogue entry, by id — the weekly-plan builder's exercise source. */
+export function getCatalogueExercise(id: string): PlayerExercise | null {
+  return CATALOGUE[id] ?? null
+}
 
 export const DEFAULT_SETTINGS: CoachSettings = { time: 'full', equipment: 'bands', joints: [] }
 
