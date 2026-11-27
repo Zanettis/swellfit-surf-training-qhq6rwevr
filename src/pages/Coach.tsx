@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { DayMode } from '@/data/sessions'
 import { toast } from '@/hooks/use-toast'
-import { buildSession, cloneSession } from '@/data/sessions'
+import { cloneSession } from '@/data/sessions'
 import type { CoachSession } from '@/data/player-types'
+import { buildWeeklySession, pickTodaySlot, pickSurfSubMode } from '@/data/weekly-plan'
+import type { SlotId } from '@/data/slot-id'
 import { CoachHeader } from '@/components/coach/CoachHeader'
 import { DaySwitch } from '@/components/coach/DaySwitch'
 import { HeroCard } from '@/components/coach/HeroCard'
@@ -12,31 +13,56 @@ import { Player } from '@/pages/Player'
 import { CheckIn, type CheckInResult } from '@/pages/CheckIn'
 import {
   currentStreak,
+  loadCoachState,
   loadSettings,
   recordCheckIn,
   recordCompletion,
+  recordWorkoutHistory,
   saveSettings,
+  type WorkoutHistoryEntry,
 } from '@/lib/storage'
 import { primeAudio } from '@/lib/sound'
 
 type Screen = 'coach' | 'player' | 'checkin'
 
+/** Which of the three screens the player finished a workout from. */
+interface Summary {
+  elapsedSeconds: number
+  exerciseCount: number
+  slotId: SlotId
+}
+
 export default function Coach() {
-  const [mode, setMode] = useState<DayMode>('flat')
+  const [mode, setMode] = useState<'weekly' | 'surf'>('weekly')
   const [settings, setSettings] = useState(() => loadSettings())
   const [adaptOpen, setAdaptOpen] = useState(false)
   const [screen, setScreen] = useState<Screen>('coach')
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null)
+  const [activeSlotId, setActiveSlotId] = useState<SlotId | null>(null)
   const [startExercise, setStartExercise] = useState(0)
-  const [summary, setSummary] = useState<{ elapsedSeconds: number; exerciseCount: number } | null>(
-    null,
-  )
+  const [summary, setSummary] = useState<Summary | null>(null)
   const [streak, setStreak] = useState(() => currentStreak())
+  const [coachState, setCoachState] = useState(() => loadCoachState())
 
-  const session = useMemo(() => buildSession(mode, settings), [mode, settings])
+  // Today's slot: the least-hit archetype, or a pre/post-surf routine. The
+  // session rebuilds when the coach state advances (check-in recorded).
+  const slotId: SlotId = useMemo(
+    () =>
+      mode === 'surf'
+        ? pickSurfSubMode() === 'pre'
+          ? 'SURF_PRE'
+          : 'SURF_POST'
+        : pickTodaySlot(coachState),
+    [mode, coachState],
+  )
+
+  const session = useMemo(
+    () => buildWeeklySession({ slotId, settings, state: coachState }),
+    [slotId, settings, coachState],
+  )
 
   // Re-keys the animated block whenever the session content changes, so the update is visible.
-  const contentKey = `${mode}-${settings.time}-${settings.equipment}-${settings.joints.join(',')}`
+  const contentKey = `${slotId}-${settings.time}-${settings.equipment}-${settings.joints.join(',')}-${coachState.lastUpdated}`
 
   const completedToday = streak.lastCompleted === new Date().toISOString().slice(0, 10)
 
@@ -44,31 +70,49 @@ export default function Coach() {
     (exerciseIndex: number) => {
       primeAudio() // unlock Web Audio inside the user gesture
       setActiveSession(cloneSession(session))
+      setActiveSlotId(slotId)
       setStartExercise(exerciseIndex)
       setScreen('player')
     },
-    [session],
+    [session, slotId],
   )
 
   const handlePlayerExit = useCallback(() => setScreen('coach'), [])
 
   const handlePlayerComplete = useCallback(
     (s: { elapsedSeconds: number; exerciseCount: number }) => {
-      setSummary(s)
+      setSummary({ ...s, slotId: activeSlotId ?? slotId })
       setScreen('checkin')
     },
-    [],
+    [activeSlotId, slotId],
   )
 
-  const handleCheckInDone = useCallback((result: CheckInResult) => {
-    recordCompletion()
-    recordCheckIn()
-    setStreak(currentStreak())
-    setScreen('coach')
-    setActiveSession(null)
-    setSummary(null)
-    void result
-  }, [])
+  const handleCheckInDone = useCallback(
+    (result: CheckInResult) => {
+      recordCompletion()
+      recordCheckIn()
+      setStreak(currentStreak())
+
+      const slot = activeSlotId ?? slotId
+      const slotIdForHistory: WorkoutHistoryEntry['slotId'] =
+        slot === 'SURF_PRE' ? 'pre' : slot === 'SURF_POST' ? 'post' : slot
+      void recordWorkoutHistory({
+        date: new Date().toISOString().slice(0, 10),
+        slotId: slotIdForHistory,
+        durationSeconds: summary?.elapsedSeconds ?? 0,
+        volume: 0,
+        feel: result.feel,
+        joint: result.joint,
+      }).then(() => {
+        setCoachState(loadCoachState()) // reload so the UI reflects level/week/joint care
+      })
+
+      setScreen('coach')
+      setActiveSession(null)
+      setSummary(null)
+    },
+    [activeSlotId, slotId, summary],
+  )
 
   if (screen === 'player' && activeSession) {
     return (

@@ -21,8 +21,8 @@ import type {
   CoachSession,
   CoachSettings,
   DayId,
+  FeelOption,
   JointOption,
-  LevelLoadMap,
   PhaseName,
   PlayerExercise,
   SessionSlotId,
@@ -32,9 +32,9 @@ import {
   LEVEL_LOAD,
   MAX_LOAD_FACTOR,
   MIN_LOAD_FACTOR,
-  PHASE_LABELS,
   SESSION_BLOCKS,
   SURF_SUBMODE_LABELS,
+  WEEKLY_SLOT_ORDER,
 } from './player-types'
 import type { CoachState } from '@/lib/storage'
 
@@ -242,10 +242,24 @@ function applyLevel(ex: PlayerExercise, level: CoachLevel): PlayerExercise {
 
 // ── Adaptive load factor ─────────────────────────────────────────────────────
 
+/**
+ * The feel the last recorded check-in produced, derived from checkInTimes —
+ * CoachState has no `lastFeel` column, and this stays the single source of
+ * truth (the newest dated entry wins; ties prefer the harsher feel).
+ */
+function lastFeelOf(state: CoachState): FeelOption | null {
+  const { checkInTimes } = state
+  const dated = (Object.keys(checkInTimes) as FeelOption[])
+    .filter((feel) => !!checkInTimes[feel])
+    .sort((a, b) => (checkInTimes[b] ?? '').localeCompare(checkInTimes[a] ?? ''))
+  return dated[0] ?? null
+}
+
 /** Session-level load factor from CoachState: feel moves it, clamped. */
 function stateLoadFactor(state: CoachState | null): number {
   if (!state) return 1
-  switch (state.lastFeel) {
+  const feel = lastFeelOf(state)
+  switch (feel) {
     case 'too_easy':
       return Math.min(MAX_LOAD_FACTOR, 1 + 0.1)
     case 'brutal':
@@ -309,7 +323,12 @@ export function buildWeeklySession({
         )
       if (pick) {
         chosenIds.add(pick.id)
-        exercises.push(applyLevel(pick, level))
+        exercises.push({
+          ...applyLevel(pick, level),
+          phase: block.phase,
+          // Rep logging stays Main-Conditioning-only, per the Coach rule.
+          canLogReps: block.phase === 'main',
+        })
       }
     }
   }
@@ -334,7 +353,8 @@ export function buildWeeklySession({
       : `${slotId} · ${template.focus}`
 
   const focusTags = [...joints].length ? [template.focus, 'Joint Care'] : [template.focus]
-  const description = state?.lastFeel
+  const adapted = state ? lastFeelOf(state) !== null : false
+  const description = adapted
     ? `${template.description} Adapted from your last check-in.`
     : template.description
 
@@ -387,5 +407,11 @@ export function pickTodaySlot(state: CoachState | null): DayId {
   const counts = state?.weeklyFocusCounts ?? { S1: 0, S2: 0, S3: 0, S4: 0 }
   const fewest = Math.min(counts.S1, counts.S2, counts.S3, counts.S4)
   // Some archetype is behind: fill the least-hit one, in S1..S4 order when tied.
-  return (WEEKLY_SLOT_ORDER.find((d) => counts[d] === fewest) ?? 'S1') as DayId
+  return WEEKLY_SLOT_ORDER.find((d) => counts[d] === fewest) ?? 'S1'
+}
+
+/** Pick a Surf Day routine for today: pre before the session, post after. */
+export function pickSurfSubMode(): SurfSubMode {
+  const hour = new Date().getHours()
+  return hour < 12 ? 'pre' : 'post'
 }

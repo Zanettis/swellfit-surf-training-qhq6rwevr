@@ -1,13 +1,14 @@
 import { cn } from '@/lib/utils'
-import type { DayMode } from '@/data/sessions'
+
+export type CoachMode = 'weekly' | 'surf'
 
 interface DaySwitchProps {
-  value: DayMode
-  onChange: (next: DayMode) => void
+  value: CoachMode
+  onChange: (next: CoachMode) => void
 }
 
-const OPTIONS: { value: DayMode; label: string }[] = [
-  { value: 'flat', label: 'Flat Day' },
+const OPTIONS: { value: CoachMode; label: string }[] = [
+  { value: 'weekly', label: 'Weekly Plan' },
   { value: 'surf', label: 'Surf Day' },
 ]
 
