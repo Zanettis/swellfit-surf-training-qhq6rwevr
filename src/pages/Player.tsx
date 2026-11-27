@@ -95,11 +95,13 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
     [current, engine.setNumber, repLog.sheetOpen],
   )
 
-  // "Set Complete": rep sets open the log sheet first; timed sets advance.
+  // "Set Complete": MAIN-block rep sets open the log sheet first (the Coach
+  // rule lives on the exercise itself — warmup/decompression never ask for
+  // reps and advance straight through); timed sets advance.
   const handleSetComplete = useCallback(() => {
     const eng = engineRef.current
     const ex = eng.current
-    if (ex && ex.type === 'reps') {
+    if (ex && ex.type === 'reps' && ex.canLogReps === true) {
       repLog.openRepLog(ex, eng.setNumber - 1, eng.blockElapsed)
       return
     }
@@ -496,7 +498,13 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
               ? engine.exerciseIndex + 1
               : engine.exerciseIndex
             : engine.exerciseIndex
-          engine.swapExercise(idx, replacement)
+          // A swapped-in alternative has no phase/canLogReps of its own —
+          // inherit them from the exercise it replaces.
+          engine.swapExercise(idx, {
+            ...replacement,
+            phase: current?.phase,
+            canLogReps: current?.canLogReps,
+          })
           setSwapOpen(false)
           if (swapWasRunningRef.current) engine.toggleRunning()
           swapWasRunningRef.current = false

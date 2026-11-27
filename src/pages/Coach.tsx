@@ -15,6 +15,7 @@ import { AdaptSheet } from '@/components/coach/AdaptSheet'
 import { Player } from '@/pages/Player'
 import { CheckIn, type CheckInResult } from '@/pages/CheckIn'
 import {
+  clearPersistentJointCare,
   coachJointSettings,
   currentStreak,
   loadAllRepHistory,
@@ -114,13 +115,18 @@ export default function Coach() {
 
   const handleCheckInDone = useCallback(
     (result: CheckInResult) => {
-      recordCompletion()
-      recordCheckIn()
-      setStreak(currentStreak())
-
       const slot: SlotId = activeSlotId ?? slotId
+      const isSurf = slot === 'SURF_PRE' || slot === 'SURF_POST'
       const slotIdForHistory: WorkoutHistoryEntry['slotId'] =
         slot === 'SURF_PRE' ? 'pre' : slot === 'SURF_POST' ? 'post' : slot
+
+      // Streak counting is weekly-cycle only: a 10-min surf routine is not a
+      // training session, so it neither counts the weekly goal nor the streak.
+      if (!isSurf) {
+        recordCompletion()
+        recordCheckIn()
+        setStreak(currentStreak())
+      }
 
       // The state advance (week, slot counts, feel/joint adaptation) is saved
       // synchronously before the network call, so the coach screen can reload
@@ -131,7 +137,7 @@ export default function Coach() {
         durationSeconds: summary?.elapsedSeconds ?? 0,
         volume: todaysVolume(),
         feel: result.feel,
-        joint: result.joint,
+        joints: result.joints,
       })
         .then((persisted) => {
           if (!persisted) {
@@ -224,6 +230,11 @@ export default function Coach() {
         open={adaptOpen}
         onOpenChange={setAdaptOpen}
         settings={settings}
+        coachState={coachState}
+        onReleaseJoint={(joint) => {
+          clearPersistentJointCare(loadCoachState(), joint)
+          setCoachState(loadCoachState())
+        }}
         onUpdate={(next) => {
           setSettings(next)
           saveSettings(next)

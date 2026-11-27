@@ -17,6 +17,7 @@ import type {
   DayId,
   FeelOption,
   JointCheck,
+  JointOption,
   SurfSubMode,
 } from '@/data/player-types'
 
@@ -261,7 +262,7 @@ export interface CoachState {
     shoulders: boolean
     lowerBack: boolean
     knees: boolean
-    /** ISO date the flags were set; cleared after 2 weeks of "all good". */
+    /** ISO date the flags were set (for the UI's "from the last check-in"). */
     since: string | null
   }
   /** ISO date the last workout was completed. */
@@ -284,11 +285,12 @@ export function loadCoachState(): CoachState {
     const raw = localStorage.getItem(KEY_COACH)
     if (!raw) return { ...DEFAULT_COACH_STATE }
     const parsed = JSON.parse(raw) as Partial<CoachState>
-    // Monday-safety: the week number itself never resets, but the weekly
-    // focus counts restart when the stored one is from a previous ISO week.
-    const weeklyFocusCounts = sameWeek(parsed.lastUpdated)
-      ? { ...DEFAULT_COACH_STATE.weeklyFocusCounts, ...parsed.weeklyFocusCounts }
-      : { ...DEFAULT_COACH_STATE.weeklyFocusCounts }
+    // The week does NOT reset on Mondays: counts carry over until the four
+    // archetypes have each been completed once (Freeletics week rule).
+    const weeklyFocusCounts = {
+      ...DEFAULT_COACH_STATE.weeklyFocusCounts,
+      ...parsed.weeklyFocusCounts,
+    }
     return {
       ...DEFAULT_COACH_STATE,
       ...parsed,
@@ -323,7 +325,9 @@ export interface WorkoutHistoryEntry {
   /** Total reps logged across the session's Main block (0 when none). */
   volume: number
   feel?: FeelOption | null
-  joint?: JointCheck | null
+  /** Every joint flagged at check-in, stored comma-joined in the DB's single
+   * text column ('shoulder,lower_back') — no schema change needed. */
+  joints?: JointCheck[]
 }
 
 /**
@@ -340,7 +344,7 @@ async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
       duration_seconds: entry.durationSeconds,
       volume: entry.volume,
       feel: entry.feel,
-      joint: entry.joint,
+      joint: entry.joints?.length ? entry.joints.join(',') : null,
     })
     if (error) {
       console.error('[SwellFit] workout_history insert failed:', error.message)
@@ -369,7 +373,7 @@ export async function loadWorkoutHistory(limit = 50): Promise<WorkoutHistoryEntr
         durationSeconds: row.duration_seconds,
         volume: row.volume,
         feel: (row.feel as FeelOption | null) ?? null,
-        joint: (row.joint as JointCheck | null) ?? null,
+        joints: row.joint ? (row.joint.split(',') as JointCheck[]) : [],
       }))
     }
   } catch {
@@ -387,19 +391,21 @@ export async function loadWorkoutHistory(limit = 50): Promise<WorkoutHistoryEntr
 
 /**
  * Record a completed workout: one Supabase row per device (date, duration,
- * volume, feel and joint), mirrored to localStorage when the write fails.
- * Advances the week number (never a Monday reset) and the weekly slot counts
- * — S1..S4 only, surf routines never consume a weekly slot. Called at
- * check-in time: feel/joint flow through applyCheckInToCoachState, the single
- * adaptation path, so the next session is modulated exactly once.
+ * volume, feel and joints), mirrored to localStorage when the write fails.
+ * Freeletics week rule: the week number advances ONLY when the week fills
+ * 4/4 — every archetype S1..S4 completed once — and then the slot counts
+ * reset for the new cycle. There is no Monday reset. Surf routines ('pre' /
+ * 'post') write history but never advance the week, never consume a slot and
+ * never modulate level/joint care (a 10-min surf routine must not retune the
+ * strength sessions). For S1..S4, feel/joint flow through
+ * applyCheckInToCoachState, the single adaptation path, so the next session
+ * is modulated exactly once.
  * Resolves true when the Supabase row landed, false when the offline mirror
  * was used instead (so the caller can be honest about what was saved).
  */
 export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<boolean> {
   const state = loadCoachState()
 
-  // Advance the week number: one per completed session — never a Monday reset.
-  state.currentWeekNumber += 1
   state.lastCompleted = entry.date
 
   // Only S1..S4 consume weekly slots — SurfSubMode is 'pre' | 'post', so the
@@ -412,11 +418,24 @@ export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<
     entry.slotId === 'S4'
   ) {
     state.weeklyFocusCounts[entry.slotId] = (state.weeklyFocusCounts[entry.slotId] ?? 0) + 1
-  }
 
-  // Feel/joint flow through applyCheckInToCoachState — the single adaptation
-  // path the plan defines, so level/joint-care are modulated exactly once.
-  applyCheckInToCoachState(state, entry.feel ?? null, entry.joint ?? null)
+    // Week N advances only when the week is complete (each archetype hit once);
+    // the newly started week begins with fresh slot counts.
+    if (
+      state.weeklyFocusCounts.S1 > 0 &&
+      state.weeklyFocusCounts.S2 > 0 &&
+      state.weeklyFocusCounts.S3 > 0 &&
+      state.weeklyFocusCounts.S4 > 0
+    ) {
+      state.currentWeekNumber += 1
+      state.weeklyFocusCounts = { S1: 0, S2: 0, S3: 0, S4: 0 }
+    }
+
+    // Feel/joints flow through applyCheckInToCoachState — the single
+    // adaptation path the plan defines, so level/joint-care are modulated
+    // exactly once.
+    applyCheckInToCoachState(state, entry.feel ?? null, entry.joints ?? null)
+  }
 
   // Write-through to Supabase; keep an offline mirror when the write fails.
   const ok = await insertHistoryRow(entry)
@@ -450,17 +469,13 @@ function applyFeelToState(state: CoachState, feel: FeelOption): void {
 
 function applyJointToState(state: CoachState, joint: JointCheck): void {
   if (joint === 'all_good') {
-    // Two "all good" weeks since the flags clears persistent joint care.
-    if (state.persistentJointCare.since) {
-      const since = new Date(`${state.persistentJointCare.since}T00:00:00`)
-      if (Date.now() - since.getTime() >= 14 * 24 * 60 * 60 * 1000) {
-        state.persistentJointCare = {
-          shoulders: false,
-          lowerBack: false,
-          knees: false,
-          since: null,
-        }
-      }
+    // "All Good" clears persistent joint care immediately — the user said the
+    // joints are fine, so protection ends with the check-in that says so.
+    state.persistentJointCare = {
+      shoulders: false,
+      lowerBack: false,
+      knees: false,
+      since: null,
     }
     return
   }
@@ -471,17 +486,35 @@ function applyJointToState(state: CoachState, joint: JointCheck): void {
 }
 
 /**
+ * Manually release one joint's persistent care (from the AdaptSheet): the
+ * user's manual choice overrides the check-in flag for that joint.
+ */
+export function clearPersistentJointCare(state: CoachState, joint: JointOption): void {
+  if (joint === 'shoulders') state.persistentJointCare.shoulders = false
+  if (joint === 'lowerBack') state.persistentJointCare.lowerBack = false
+  if (joint === 'knees') state.persistentJointCare.knees = false
+  if (
+    !state.persistentJointCare.shoulders &&
+    !state.persistentJointCare.lowerBack &&
+    !state.persistentJointCare.knees
+  ) {
+    state.persistentJointCare.since = null
+  }
+  saveCoachState(state)
+}
+
+/**
  * Fold a check-in result into the Coach state: feel moves the level ±1
- * (Brutal down, Just Right/Too Easy per plan), joints set the persistent
- * protection flags that pre-select care in the next session's AdaptSheet.
+ * (Brutal down, Just Right/Too Easy per plan); every flagged joint sets its
+ * persistent protection flag, and 'all_good' clears all of them at once.
  */
 export function applyCheckInToCoachState(
   state: CoachState,
   feel: FeelOption | null,
-  joint: JointCheck | null,
+  joints: JointCheck[] | null,
 ): CoachState {
   if (feel) applyFeelToState(state, feel)
-  if (joint) applyJointToState(state, joint)
+  for (const joint of joints ?? []) applyJointToState(state, joint)
   state.lastUpdated = todayKey()
   saveCoachState(state)
   return state

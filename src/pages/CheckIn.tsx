@@ -15,8 +15,6 @@ export type Joint = 'all_good' | 'shoulder' | 'lower_back' | 'knees'
 export interface CheckInResult {
   feel: Feel | null
   /** Multi-joint check: every tight joint (shoulder, lower back, knees). */
-  joint: Joint | null
-  /** All flagged joints at once — the Coach state's single adaptation path. */
   joints: Joint[]
 }
 
@@ -123,11 +121,9 @@ export function CheckIn({
   onDone,
 }: CheckInProps) {
   const [feel, setFeel] = useState<Feel | null>(null)
-  const [joint, setJoint] = useState<Joint | null>(null)
-  const note = useMemo(
-    () => coachNote(feel, joint ? [joint] : [], isSurfDay),
-    [feel, joint, isSurfDay],
-  )
+  // Multi-select: several joints can be tight at once (shoulder + back + knees).
+  const [joints, setJoints] = useState<Joint[]>([])
+  const note = useMemo(() => coachNote(feel, joints, isSurfDay), [feel, joints, isSurfDay])
 
   const repRows = useMemo(() => {
     const logs = loadAllRepHistory()
@@ -250,18 +246,31 @@ export function CheckIn({
               <button
                 key={p.value}
                 type="button"
-                aria-pressed={joint === p.value}
-                onClick={() => setJoint(joint === p.value ? null : p.value)}
-                className={pillClass(joint === p.value)}
+                aria-pressed={joints.includes(p.value)}
+                onClick={() =>
+                  setJoints((current) => {
+                    const withoutAllGood = current.filter((j) => j !== 'all_good')
+                    return withoutAllGood.includes(p.value)
+                      ? withoutAllGood.filter((j) => j !== p.value)
+                      : [...withoutAllGood, p.value]
+                  })
+                }
+                className={pillClass(joints.includes(p.value))}
               >
                 {p.label}
               </button>
             ))}
             <button
               type="button"
-              aria-pressed={joint === 'all_good'}
-              onClick={() => setJoint(joint === 'all_good' ? null : 'all_good')}
-              className={pillClass(joint === 'all_good')}
+              aria-pressed={joints.includes('all_good')}
+              onClick={() =>
+                setJoints((current) =>
+                  current.includes('all_good')
+                    ? current.filter((j) => j !== 'all_good')
+                    : ['all_good'],
+                )
+              }
+              className={pillClass(joints.includes('all_good'))}
             >
               All Good
             </button>
@@ -283,7 +292,7 @@ export function CheckIn({
             type="button"
             size="lg"
             className="h-14 w-full rounded-full bg-[#00D1B2] text-base font-semibold text-[#090C10] hover:bg-[#00D1B2]/90"
-            onClick={() => onDone({ feel, joint, joints: joint ? [joint] : [] })}
+            onClick={() => onDone({ feel, joints })}
           >
             Finish & Save Session
           </Button>

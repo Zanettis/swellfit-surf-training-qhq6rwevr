@@ -219,6 +219,19 @@ function scaleDose(value: number, factor: number): number {
   return Math.max(1, Math.round(value * factor))
 }
 
+/** Apply a load factor to ONE exercise and rewrite its dose label. */
+function scaleExercise(ex: PlayerExercise, factor: number): PlayerExercise {
+  const scaled: PlayerExercise = { ...ex }
+  if (ex.type === 'reps' && ex.reps) {
+    scaled.reps = scaleDose(ex.reps, factor)
+    scaled.dose = `${scaled.sets} × ${scaled.reps}${ex.perSide ? ' per side' : ''}`
+  } else if (ex.type === 'time' && ex.durationSeconds) {
+    scaled.durationSeconds = scaleDose(ex.durationSeconds, factor)
+    scaled.dose = `${scaled.sets} × ${scaled.durationSeconds}s`
+  }
+  return scaled
+}
+
 /**
  * Apply the level's dose/rest multipliers and rewrite the human dose label
  * (a scaled "3 × 12" becomes "3 × 14" so the player shows what's real).
@@ -284,7 +297,8 @@ export interface BuildWeeklySessionArgs {
  *  - exercises chosen slot-by-slot from the catalogue, respecting equipment
  *    budget, joint protection (persistent flags from CoachState merged with
  *    the adapt-sheet's manual picks) and no duplicates within a block;
- *  - dose scaled by coach level × the check-in load factor.
+ *  - dose scaled by the coach level (once); the check-in feel factor
+ *    modulates ONLY the Main Conditioning block.
  */
 export function buildWeeklySession({
   slotId,
@@ -304,7 +318,11 @@ export function buildWeeklySession({
   if (state?.persistentJointCare.knees) joints.add('knees')
 
   const plan = settings.time === 'express' ? template.express : template.full
-  const loadFactor = stateLoadFactor(state) * LEVEL_LOAD[level].dose
+  // The level's dose multiplier is applied ONCE, inside applyLevel (which also
+  // rewrites the dose label). The check-in feel factor is a separate, small
+  // modulation — stacking it on the level's dose here double-multiplied the
+  // load (one "Too Easy" inflated reps ~45% instead of ~10%).
+  const feelFactor = stateLoadFactor(state)
 
   const exercises: PlayerExercise[] = []
   const chosenIds = new Set<string>()
@@ -314,6 +332,7 @@ export function buildWeeklySession({
     for (const slot of slots) {
       const pick = slot
         .map((id) => getCatalogueExercise(id))
+        .map((e) => (e ? applyLevel(e, level) : null))
         .find(
           (e): e is PlayerExercise =>
             !!e &&
@@ -323,8 +342,13 @@ export function buildWeeklySession({
         )
       if (pick) {
         chosenIds.add(pick.id)
+        // The level's dose is already in `pick` via applyLevel; the check-in
+        // feel factor modulates ONLY Main Conditioning — warmup and
+        // decompression keep the base level dose.
+        const scaled =
+          block.phase === 'main' && feelFactor !== 1 ? scaleExercise(pick, feelFactor) : pick
         exercises.push({
-          ...applyLevel(pick, level),
+          ...scaled,
           phase: block.phase,
           // Rep logging stays Main-Conditioning-only, per the Coach rule.
           canLogReps: block.phase === 'main',
@@ -332,20 +356,6 @@ export function buildWeeklySession({
       }
     }
   }
-
-  // Apply the session-level load factor on top of the level scaling.
-  const withLoad = exercises.map((ex) => {
-    if (loadFactor === 1) return ex
-    const adjusted = { ...ex }
-    if (ex.type === 'reps' && ex.reps) {
-      adjusted.reps = scaleDose(ex.reps, loadFactor)
-      adjusted.dose = `${adjusted.sets} × ${adjusted.reps}${ex.perSide ? ' per side' : ''}`
-    } else if (ex.type === 'time' && ex.durationSeconds) {
-      adjusted.durationSeconds = scaleDose(ex.durationSeconds, loadFactor)
-      adjusted.dose = `${adjusted.sets} × ${adjusted.durationSeconds}s`
-    }
-    return adjusted
-  })
 
   const label =
     slotId === 'SURF_PRE' || slotId === 'SURF_POST'
@@ -364,7 +374,7 @@ export function buildWeeklySession({
     durationMin: settings.time === 'express' ? 10 : 25,
     equipmentTag: EQUIPMENT_TAG(settings.equipment),
     focusTags,
-    exercises: withLoad,
+    exercises,
     dayId: slotId === 'SURF_PRE' || slotId === 'SURF_POST' ? undefined : slotId,
   }
 }
