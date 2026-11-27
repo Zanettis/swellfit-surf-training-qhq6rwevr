@@ -326,7 +326,11 @@ export interface WorkoutHistoryEntry {
   joint?: JointCheck | null
 }
 
-/** Insert one row into Supabase; resolve false when offline/blocked. */
+/**
+ * Insert one row into Supabase; resolve false when offline/blocked. A failed
+ * insert is NEVER silent: the PostgREST error is logged so the next failure
+ * names itself instead of looking like a lost workout.
+ */
 async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
   try {
     const { error } = await supabase.from('workout_history').insert({
@@ -338,8 +342,13 @@ async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
       feel: entry.feel,
       joint: entry.joint,
     })
-    return !error
-  } catch {
+    if (error) {
+      console.error('[SwellFit] workout_history insert failed:', error.message)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error('[SwellFit] workout_history insert threw:', err)
     return false
   }
 }

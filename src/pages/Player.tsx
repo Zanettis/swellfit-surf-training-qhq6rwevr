@@ -58,11 +58,16 @@ export function Player({ session, startIndex, onExit, onComplete }: PlayerProps)
       soundOn,
       startIndex,
       onFinish: () => {
+        // ONLY onComplete here: it switches the Coach to the check-in screen,
+        // which is where the session is recorded (history + streak). Calling
+        // onExit() too overwrote screen='checkin' with screen='coach' in the
+        // same batched tick, so the check-in — and with it the whole
+        // workout-history write — never happened. onExit stays for the
+        // "End Session Early" path, which is its real job.
         onComplete({
           elapsedSeconds: engineRef.current?.elapsedSeconds ?? 0,
           exerciseCount: session?.exercises.length ?? 0,
         })
-        onExit()
       },
     },
   )
