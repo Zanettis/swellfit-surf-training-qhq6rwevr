@@ -6,7 +6,10 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
@@ -62,17 +65,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/` },
     })
-    return { error: readableAuthError(error) }
+    if (error) return { error: readableAuthError(error), needsConfirmation: false }
+    // With email confirmation on, an already-registered address comes back as a
+    // user with no identities instead of an error — report it as a duplicate.
+    if (data.user && data.user.identities?.length === 0)
+      return {
+        error: readableAuthError({ message: 'User already registered' }),
+        needsConfirmation: false,
+      }
+    // No session = confirmation is required: the user must open the emailed link first.
+    return { error: null, needsConfirmation: !data.session }
   }
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: readableAuthError(error) }
+    return { error: error ? readableAuthError(error) : null }
   }
 
   const signOut = async () => {
