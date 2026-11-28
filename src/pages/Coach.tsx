@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from '@/hooks/use-toast'
 import { cloneSession } from '@/data/sessions'
-import type { CoachSession, SurfSubMode } from '@/data/player-types'
+import type { CoachSession, DayId, SurfSubMode } from '@/data/player-types'
 import { buildWeeklySession, pickTodaySlot, pickSurfSubMode } from '@/data/weekly-plan'
 import type { SlotId } from '@/data/slot-id'
 import { CoachHeader } from '@/components/coach/CoachHeader'
@@ -54,15 +54,25 @@ export default function Coach() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [streak, setStreak] = useState(() => currentStreak())
   const [coachState, setCoachState] = useState(() => loadCoachState())
+  // Free slot pick: any S1–S4 card can be tapped; the suggestion stays highlighted.
+  const [pickedSlot, setPickedSlot] = useState<DayId | null>(null)
   // Surf Day routine: Pre-Surf before noon, Post-Surf after (user can switch).
   const [surfMode, setSurfMode] = useState<SurfSubMode>(() => pickSurfSubMode())
 
   // Today's slot: the least-hit archetype, or the picked surf routine. The
   // session rebuilds when the coach state advances (check-in recorded).
+  const suggestedSlot: DayId = useMemo(() => pickTodaySlot(coachState), [coachState])
+
+  // Displayed slot: the user's free pick when set, otherwise the suggestion.
+  // Switching to Surf Day (or back) keeps the weekly pick intact.
   const slotId: SlotId = useMemo(
     () =>
-      mode === 'surf' ? (surfMode === 'pre' ? 'SURF_PRE' : 'SURF_POST') : pickTodaySlot(coachState),
-    [mode, surfMode, coachState],
+      mode === 'surf'
+        ? surfMode === 'pre'
+          ? 'SURF_PRE'
+          : 'SURF_POST'
+        : (pickedSlot ?? suggestedSlot),
+    [mode, surfMode, pickedSlot, suggestedSlot],
   )
 
   // Effective settings = the adapt-sheet's manual picks + the coach state's
@@ -209,8 +219,10 @@ export default function Coach() {
       {mode === 'weekly' && (
         <WeekSlotBar
           counts={coachState.weeklyFocusCounts}
-          todaySlot={pickTodaySlot(coachState)}
+          todaySlot={suggestedSlot}
+          selectedSlot={slotId as DayId}
           completedToday={completedToday}
+          onSelectSlot={setPickedSlot}
         />
       )}
 

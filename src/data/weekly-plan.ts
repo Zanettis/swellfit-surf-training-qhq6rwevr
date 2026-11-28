@@ -16,6 +16,7 @@
 //  - "AI" never appears anywhere in the UI — this is the "Coach".
 
 import { getCatalogueExercise } from './sessions'
+import { loadBestRecentReps } from '@/lib/storage'
 import type {
   CoachLevel,
   CoachSession,
@@ -74,13 +75,12 @@ export const WEEKLY_TEMPLATES: Record<DayId, TemplateDay> = {
       decompression: [['child-pose-with-reach'], ['thread-the-needle-hold']],
     },
     express: {
-      warmup: [['cat-cow-flow'], ['thoracic-open-books']],
+      warmup: [['cat-cow-flow']],
       main: [
         ['banded-paddle-pulls', 'prone-swimmers'],
         ['trx-rows', 'banded-paddle-pulls'],
-        ['side-plank-hip-dips', 'hollow-body-holds'],
       ],
-      decompression: [['child-pose-with-reach']],
+      decompression: [],
     },
   },
   S2: {
@@ -97,13 +97,12 @@ export const WEEKLY_TEMPLATES: Record<DayId, TemplateDay> = {
       decompression: [['thread-the-needle-hold'], ['reverse-tabletop-hold']],
     },
     express: {
-      warmup: [['band-dislocates'], ['thoracic-open-books']],
+      warmup: [['band-dislocates']],
       main: [
         ['banded-external-rotations', 'side-lying-external-rotation'],
         ['explosive-surf-pop-ups', 'slow-tempo-pop-ups'],
-        ['glute-bridge-march', 'glute-bridge'],
       ],
-      decompression: [['reverse-tabletop-hold']],
+      decompression: [],
     },
   },
   S3: {
@@ -121,14 +120,12 @@ export const WEEKLY_TEMPLATES: Record<DayId, TemplateDay> = {
       decompression: [['pigeon-pose-hold'], ['supine-spine-twist'], ['legs-up-the-wall']],
     },
     express: {
-      warmup: [['world-greatest-stretch'], ['cat-cow-flow']],
+      warmup: [['world-greatest-stretch']],
       main: [
         ['kettlebell-swings', 'glute-bridge'],
         ['bird-dog-rows', 'bird-dog'],
-        ['cossack-squats', 'lateral-bounds'],
-        ['hollow-body-holds', 'dead-bug-extensions'],
       ],
-      decompression: [['pigeon-pose-hold'], ['supine-spine-twist']],
+      decompression: [],
     },
   },
   S4: {
@@ -146,14 +143,12 @@ export const WEEKLY_TEMPLATES: Record<DayId, TemplateDay> = {
       decompression: [['child-pose-with-reach'], ['pigeon-pose-hold'], ['legs-up-the-wall']],
     },
     express: {
-      warmup: [['world-greatest-stretch'], ['band-dislocates']],
+      warmup: [['world-greatest-stretch']],
       main: [
         ['explosive-surf-pop-ups', 'slow-tempo-pop-ups'],
         ['kettlebell-swings', 'glute-bridge'],
-        ['banded-paddle-pulls', 'prone-swimmers'],
-        ['cossack-squats', 'lateral-bounds'],
       ],
-      decompression: [['pigeon-pose-hold'], ['legs-up-the-wall']],
+      decompression: [],
     },
   },
 }
@@ -174,12 +169,12 @@ const SURF_TEMPLATES: Record<SurfSubMode, TemplateDay> = {
       decompression: [['thread-the-needle-hold'], ['supine-spine-twist']],
     },
     express: {
-      warmup: [['cat-cow-flow'], ['band-dislocates']],
+      warmup: [['band-dislocates']],
       main: [
         ['banded-external-rotations', 'side-lying-external-rotation'],
         ['explosive-surf-pop-ups', 'slow-tempo-pop-ups'],
       ],
-      decompression: [['thread-the-needle-hold']],
+      decompression: [],
     },
   },
   post: {
@@ -197,8 +192,8 @@ const SURF_TEMPLATES: Record<SurfSubMode, TemplateDay> = {
     },
     express: {
       warmup: [['cat-cow-flow']],
-      main: [['child-pose-with-reach'], ['hip-flexor-release'], ['pigeon-pose-hold']],
-      decompression: [['legs-up-the-wall']],
+      main: [['child-pose-with-reach'], ['hip-flexor-release']],
+      decompression: [],
     },
   },
 }
@@ -233,21 +228,24 @@ function scaleExercise(ex: PlayerExercise, factor: number): PlayerExercise {
 }
 
 /**
- * Apply the level's dose/rest multipliers and rewrite the human dose label
- * (a scaled "3 × 12" becomes "3 × 14" so the player shows what's real).
+ * Apply the level's dose/rest multipliers — and, from Level 4 on, the extra
+ * SETS on the Main Conditioning block (visible in the dose label: "4 × 12"
+ * instead of "3 × 12"). `isMain` gates the set progression so warmup and
+ * decompression keep their base sets.
  */
-function applyLevel(ex: PlayerExercise, level: CoachLevel): PlayerExercise {
-  const { dose, rest } = LEVEL_LOAD[level]
-  if (dose === 1 && rest === 1) return ex
+function applyLevel(ex: PlayerExercise, level: CoachLevel, isMain: boolean): PlayerExercise {
+  const { dose, rest, extraMainSets } = LEVEL_LOAD[level]
+  const extraSets = isMain ? extraMainSets : 0
   const scaled: PlayerExercise = {
     ...ex,
+    sets: ex.sets + extraSets,
     restSeconds: Math.max(5, Math.round(ex.restSeconds * rest)),
   }
-  if (ex.type === 'reps' && ex.reps) {
-    scaled.reps = scaleDose(ex.reps, dose)
+  if (scaled.type === 'reps' && scaled.reps) {
+    scaled.reps = scaleDose(scaled.reps, dose)
     scaled.dose = `${scaled.sets} × ${scaled.reps}${ex.perSide ? ' per side' : ''}`
-  } else if (ex.type === 'time' && ex.durationSeconds) {
-    scaled.durationSeconds = scaleDose(ex.durationSeconds, dose)
+  } else if (scaled.type === 'time' && scaled.durationSeconds) {
+    scaled.durationSeconds = scaleDose(scaled.durationSeconds, dose)
     scaled.dose = `${scaled.sets} × ${scaled.durationSeconds}s`
   }
   return scaled
@@ -332,7 +330,7 @@ export function buildWeeklySession({
     for (const slot of slots) {
       const pick = slot
         .map((id) => getCatalogueExercise(id))
-        .map((e) => (e ? applyLevel(e, level) : null))
+        .map((e) => (e ? applyLevel(e, level, block.phase === 'main') : null))
         .find(
           (e): e is PlayerExercise =>
             !!e &&
@@ -354,6 +352,21 @@ export function buildWeeklySession({
           canLogReps: block.phase === 'main',
         })
       }
+    }
+  }
+
+  // Real progression: for Main-Block 'reps' exercises, set the target ABOVE
+  // the user's best recent log (loadBestRecentReps reads the history RepLogSheet
+  // wrote) — best + 1, at least. No history keeps the current target.
+  const bestReps = loadBestRecentReps()
+  for (const ex of exercises) {
+    if (ex.phase !== 'main' || ex.type !== 'reps' || !ex.reps) continue
+    const best = bestReps[ex.id]
+    if (!best) continue
+    const target = best.reps + 1
+    if (target > ex.reps) {
+      ex.reps = target
+      ex.dose = `${ex.sets} × ${ex.reps}${ex.perSide ? ' per side' : ''}`
     }
   }
 

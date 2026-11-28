@@ -138,20 +138,32 @@ export type SessionSlotId = DayId | 'SURF_PRE' | 'SURF_POST'
 /** Order the week's slots are filled in when counts are tied. */
 export const WEEKLY_SLOT_ORDER: DayId[] = ['S1', 'S2', 'S3', 'S4']
 
-/** Coach intensity level — Level 2 is the base; check-ins move it ±1. */
-export type CoachLevel = 1 | 2 | 3
+/** Coach intensity level — Level 2 is the base; check-ins move it ±1 (1..5). */
+export type CoachLevel = 1 | 2 | 3 | 4 | 5
 
+export const MIN_COACH_LEVEL: CoachLevel = 1
+export const MAX_COACH_LEVEL: CoachLevel = 5
 export const BASE_COACH_LEVEL: CoachLevel = 2
 
 export const COACH_LEVEL_LABELS: Record<CoachLevel, string> = {
   1: 'Level 1 · Rebuild',
   2: 'Level 2 · Build',
   3: 'Level 3 · Push',
+  4: 'Level 4 · Surge',
+  5: 'Level 5 · Power',
 }
 
-/** Dose scaling per level: reps/durations multiplier and rest multiplier. */
-export const LEVEL_LOAD: Record<CoachLevel, { dose: number; rest: number }> = {
-  1: { dose: 0.85, rest: 1.25 },
-  2: { dose: 1, rest: 1 },
-  3: { dose: 1.15, rest: 0.85 },
-}
+/**
+ * Dose scaling per level: reps/durations multiplier, rest multiplier and —
+ * from Level 4 on — extra SETS on the Main Conditioning block (visible in the
+ * dose label: "4 × 12" instead of "3 × 12"). Level 5 also raises the dose
+ * multiplier further (+1 dose extra on top of the extra set).
+ */
+export const LEVEL_LOAD: Record<CoachLevel, { dose: number; rest: number; extraMainSets: number }> =
+  {
+    1: { dose: 0.85, rest: 1.25, extraMainSets: 0 },
+    2: { dose: 1, rest: 1, extraMainSets: 0 },
+    3: { dose: 1.15, rest: 0.9, extraMainSets: 0 },
+    4: { dose: 1.2, rest: 0.85, extraMainSets: 1 },
+    5: { dose: 1.35, rest: 0.8, extraMainSets: 1 },
+  }

@@ -10,6 +10,8 @@ const LABELS: Record<number, string> = {
   1: 'Rebuild',
   2: 'Build',
   3: 'Push',
+  4: 'Surge',
+  5: 'Power',
 }
 
 /**

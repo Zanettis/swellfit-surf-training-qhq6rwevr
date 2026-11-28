@@ -11,14 +11,16 @@
 
 import { supabase } from '@/lib/supabase/client'
 import { DEFAULT_SETTINGS } from '@/data/sessions'
-import type {
-  CoachLevel,
-  CoachSettings,
-  DayId,
-  FeelOption,
-  JointCheck,
-  JointOption,
-  SurfSubMode,
+import {
+  MAX_COACH_LEVEL,
+  MIN_COACH_LEVEL,
+  type CoachLevel,
+  type CoachSettings,
+  type DayId,
+  type FeelOption,
+  type JointCheck,
+  type JointOption,
+  type SurfSubMode,
 } from '@/data/player-types'
 
 const KEY_SETTINGS = 'swellfit:settings'
@@ -460,11 +462,11 @@ export async function recordWorkoutHistory(entry: WorkoutHistoryEntry): Promise<
 
 function applyFeelToState(state: CoachState, feel: FeelOption): void {
   state.checkInTimes[feel] = todayKey()
-  // Level ±1 from feel: Brutal down, Too Easy up, Just Right holds.
-  if (feel === 'brutal' && state.coachLevel > 1)
-    state.coachLevel = (state.coachLevel - 1) as CoachLevel
-  if (feel === 'too_easy' && state.coachLevel < 3)
-    state.coachLevel = (state.coachLevel + 1) as CoachLevel
+  // Level ±1 from feel: Brutal down, Too Easy up, Just Right holds. Clamped
+  // to the 1..5 scale at both extremes — the level never locks at 3 anymore.
+  const stepped = feel === 'brutal' ? state.coachLevel - 1 : state.coachLevel
+  const moved = feel === 'too_easy' ? state.coachLevel + 1 : stepped
+  state.coachLevel = Math.min(MAX_COACH_LEVEL, Math.max(MIN_COACH_LEVEL, moved)) as CoachLevel
 }
 
 function applyJointToState(state: CoachState, joint: JointCheck): void {
