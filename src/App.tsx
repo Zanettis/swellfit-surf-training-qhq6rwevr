@@ -14,9 +14,12 @@ import Layout from './components/Layout'
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
 
 /**
- * Route guards (login is MANDATORY — there is no anonymous mode):
- *  - no session → every app route redirects to /auth;
- *  - a restored/active session on /auth redirects back to /.
+ * Route guards (login is MANDATORY — there is no anonymous mode).
+ * Two separate <Routes> trees so /auth always resolves to a real screen:
+ *  - no session → /auth renders the Auth page and every other path falls back
+ *    to /auth (a bare <Navigate> outside any <Routes> renders nothing, which
+ *    is the black screen);
+ *  - session → the app routes, with /auth redirecting back to /.
  * While the persisted session is being restored, a neutral loading shell keeps
  * the gate from flashing the sign-in screen over the coach.
  */
@@ -35,7 +38,16 @@ function SessionGate() {
     )
   }
 
-  if (!session) return <Navigate to="/auth" replace />
+  // No session: /auth must render the actual Auth page — a bare <Navigate>
+  // outside <Routes> matches nothing and leaves a blank screen.
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/auth" element={<Auth />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
+      </Routes>
+    )
+  }
 
   return (
     <Routes>
