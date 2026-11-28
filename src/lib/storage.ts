@@ -28,6 +28,9 @@ const KEY_STREAK = 'swellfit:streak'
 const KEY_REPS = 'swellfit:reps'
 const KEY_COACH = 'swellfit:coach-state'
 const KEY_DEVICE = 'swellfit:device-id'
+
+/** Every localStorage key the app writes — sign-out wipes all of them. */
+const ALL_KEYS = [KEY_SETTINGS, KEY_STREAK, KEY_REPS, KEY_COACH, KEY_DEVICE]
 const MAX_REP_LOGS = 400
 const MAX_HISTORY = 200
 
@@ -47,6 +50,60 @@ export function getDeviceId(): string {
   } catch {
     // No localStorage (private mode) — an ephemeral id still lets writes work.
     return crypto.randomUUID()
+  }
+}
+
+// ── User identity (Supabase auth) ────────────────────────────────────────────
+// The app used to be anonymous (device id only). It now REQUIRES a signed-in
+// user: every history row carries user_id (RLS: user_id = auth.uid()) and
+// device_id stays as source metadata. On first sign-in the account CLAIMS the
+// anonymous device's rows, so the pre-account sessions migrate automatically.
+
+/** The signed-in user's id, or null when called before a session exists. */
+export async function getCurrentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user?.id ?? null
+}
+
+/**
+ * Claim the anonymous device's history for the just-signed-in user:
+ * UPDATE workout_history SET user_id = auth.uid()
+ *   WHERE device_id = :device AND user_id IS NULL.
+ * RLS allows the update because the rows being claimed have user_id IS NULL
+ * (ownerless) and the authenticated user's own id is written into them.
+ * Resolves the number of claimed rows (0 when there was nothing to claim).
+ */
+export async function claimAnonymousHistory(): Promise<number> {
+  try {
+    const user_id = await getCurrentUserId()
+    if (!user_id) return 0
+    const { data, error } = await supabase
+      .from('workout_history')
+      .update({ user_id } as never)
+      .eq('device_id', getDeviceId())
+      .is('user_id', null)
+      .select('id')
+    if (error) {
+      console.error('[SwellFit] history claim failed:', error.message)
+      return 0
+    }
+    return data?.length ?? 0
+  } catch (err) {
+    console.error('[SwellFit] history claim threw:', err)
+    return 0
+  }
+}
+
+/**
+ * Sign-out cleanup for a SHARED browser: wipe every localStorage key the app
+ * owns, so the next person who signs in here starts clean and never sees the
+ * previous user's streak, rep logs or coach state.
+ */
+export function wipeLocalUserState(): void {
+  try {
+    for (const key of ALL_KEYS) localStorage.removeItem(key)
+  } catch {
+    /* no localStorage — nothing to wipe */
   }
 }
 
@@ -335,11 +392,19 @@ export interface WorkoutHistoryEntry {
 /**
  * Insert one row into Supabase; resolve false when offline/blocked. A failed
  * insert is NEVER silent: the PostgREST error is logged so the next failure
- * names itself instead of looking like a lost workout.
+ * names itself instead of looking like a lost workout. Every row carries the
+ * signed-in user's id (RLS enforces user_id = auth.uid()); device_id stays as
+ * source metadata.
  */
 async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
   try {
+    const user_id = await getCurrentUserId()
+    if (!user_id) {
+      console.error('[SwellFit] workout_history insert skipped: no signed-in user')
+      return false
+    }
     const { error } = await supabase.from('workout_history').insert({
+      user_id,
       device_id: getDeviceId(),
       date: entry.date,
       day_id: entry.slotId,
@@ -347,7 +412,7 @@ async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
       volume: entry.volume,
       feel: entry.feel,
       joint: entry.joints?.length ? entry.joints.join(',') : null,
-    })
+    } as never)
     if (error) {
       console.error('[SwellFit] workout_history insert failed:', error.message)
       return false
@@ -359,17 +424,33 @@ async function insertHistoryRow(entry: WorkoutHistoryEntry): Promise<boolean> {
   }
 }
 
-/** Every history row for this device, newest first (Supabase first, fallback local). */
+/**
+ * Every history row for the SIGNED-IN USER, newest first (Supabase first,
+ * offline mirror as fallback). RLS scopes the query to user_id = auth.uid(),
+ * so a restored session on a shared browser reads this account's history —
+ * never the anonymous device's rows or another user's.
+ */
 export async function loadWorkoutHistory(limit = 50): Promise<WorkoutHistoryEntry[]> {
   try {
+    const user_id = await getCurrentUserId()
+    if (!user_id) return []
     const { data, error } = await supabase
       .from('workout_history')
       .select('date, day_id, duration_seconds, volume, feel, joint')
-      .eq('device_id', getDeviceId())
+      .eq('user_id', user_id)
       .order('created_at', { ascending: false })
       .limit(limit)
-    if (!error && data) {
-      return data.map((row) => ({
+    if (!error && data && data.length > 0) {
+      return (
+        data as Array<{
+          date: string
+          day_id: string | null
+          duration_seconds: number
+          volume: number
+          feel: string | null
+          joint: string | null
+        }>
+      ).map((row) => ({
         date: row.date,
         slotId: (row.day_id ?? 'S1') as DayId | SurfSubMode,
         durationSeconds: row.duration_seconds,
